@@ -71,7 +71,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   static constexpr const char* hostPages[]={
    "polyEnv","polyOsc","polyFreq","polyWidth","polyFilter","oscLayer","vcoSub","vcoNoise",      // POLY-MOD, MIXER
    "vco1Wave","osc1Octave","vco1Width","crossMod","vco2Wave","osc2Octave","osc2Width","detune",   // OSCILLATORS
-   "cutoff","resonance","env","keytrack","lfoFilter","hpfFreq","slope","filterAType",             // FILTER A
+   "cutoff","resonance","env","keytrack","lfoFilter","hpfFreq","slope","filterAType","filterMode","filterBP", // FILTER A
    "attack","decay","sustain","release","velocity","vcaMode","portamento","legato",              // AMP
    "fattack","fdecay","fsustain","frelease","envLink","envInvert","envPitch","pwmSource",         // FILTER ENVELOPE
    "rate","lfoSync","lfoDelay","lfoShape","lfoKeyTrig","envLfoTrig","lfoPitch","wheelDepth",      // LFO
@@ -90,7 +90,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    static const std::map<String,String> names{
     {"jupiterMix","DCO/VCO"},{"phaserOn","Phaser On"},{"phaserRate","Ph Rate"},{"phaserDepth","Ph Depth"},{"phaserFeedback","Ph Fdbk"},{"phaserMix","Ph Mix"},{"vco1Wave","VCO1 Shape"},{"vco2Wave","VCO2 Shape"},{"vcoSub","VCO Sub"},{"vcoNoise","VCO Noise"},{"polyEnv","PM Env"},{"polyOsc","PM Osc1"},{"polyFreq","PM>Freq2"},{"polyWidth","PM>PW2"},{"polyFilter","PM>Filter"},{"vcoPwm","VCO PWM"},{"vco1Width","VCO1 Width"},{"vco2Low","VCO2 Low"},{"wave","DCO SawPls"},{"width","DCO Width"},{"pwm","DCO PWM"},{"sub","Sub Level"},{"noise","Noise"},{"osc1Shape","VCO1 Wave"},{"osc1Octave","VCO1 Range"},{"osc1Level","DCO Level"},
     {"oscLayer","Source Mix"},{"osc2Width","VCO2 Width"},{"osc2Tune","VCO2 Tune"},{"detune","VCO2 Fine"},{"osc2Shape","VCO2 Wave"},{"osc2Octave","VCO2 Range"},{"oscSync","VCO2 Sync"},{"crossMod","X-Mod"},
-    {"cutoff","A Freq"},{"resonance","A Reso"},{"env","A Env"},{"keytrack","Filter Kybd"},{"lfoFilter","Filter LFO"},{"hpfFreq","HPF"},{"slope","A Slope"},{"filterAType","A Model"},
+    {"cutoff","A Freq"},{"resonance","A Reso"},{"env","A Env"},{"keytrack","Filter Kybd"},{"lfoFilter","Filter LFO"},{"hpfFreq","HPF"},{"slope","A Slope"},{"filterAType","A Model"},{"filterMode","A Mode"},{"filterBP","A BandPass"},
     {"attack","Amp Attack"},{"decay","Amp Decay"},{"sustain","Amp Sustain"},{"release","Amp Release"},{"velocity","Velocity"},{"vcaMode","VCA Mode"},{"portamento","Portamento"},{"legato","Legato"},
     {"fattack","Flt Attack"},{"fdecay","Flt Decay"},{"fsustain","Flt Sustain"},{"frelease","Flt Release"},{"envLink","Flt Env Src"},{"envInvert","A Env Pol"},{"envPitch","Env>Pitch"},{"pwmSource","PWM Source"},
     {"rate","LFO Rate"},{"lfoDelay","LFO Delay"},{"lfoShape","LFO Wave"},{"lfoPitch","LFO Pitch"},{"wheelDepth","Wheel Vib"},{"bendRange","Bend Range"},{"bendFilter","Bend>Filter"},{"unisonSpread","Uni Spread"},
@@ -200,8 +200,9 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   add("voiceDrive","Voice drive",0,1,.3f);add("age","Age",0,1,.3f);add("voiceWidth","Voice width",0,1,.5f);
   add("unisonSpread","Unison detune (cents)",0,40,12);add("bendRange","Pitch bend (semitones)",0,24,2);
   choice("filterRoute","Filter routing",{"A only","B only","A > B","B > A","Parallel"});
-  choice("filterAType","Filter A model",{"Ladder","State variable"});
-  choice("filterBType","Filter B model",{"Ladder","State variable"},1);
+  choice("filterAType","Filter A model",{"Ladder","State variable","Multimode"},2); // Vantage: the multimode filter by default
+  choice("filterBType","Filter B model",{"Ladder","State variable","Multimode"},1);
+  add("filterMode","Filter A mode LP-notch-HP",0,1,0);keep(std::make_unique<AudioParameterBool>(ParameterID{"filterBP",1},label("filterBP","Filter A band-pass"),false));
   add("cutoffB","Filter B cutoff (Hz)",25,18000,1800,.3f);add("resonanceB","Filter B resonance",0,.95f,.2f);
   choice("slopeB","Filter B slope",{"12 dB","24 dB"},1);
   add("filterBlend","Parallel A / B balance",0,1,.5f);add("envB","Filter B envelope",-1,1,.35f);

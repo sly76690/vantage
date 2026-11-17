@@ -641,11 +641,13 @@ private:
   addFader("oscLayer","VCO 2",0,cells[0].withTrimmedBottom(26));caption("VCO 1",cells[0].withY(area.getBottom()-23).withHeight(17),0,12);
   addFader("vcoSub","SUB",0,cells[1].withTrimmedBottom(10));addFader("vcoNoise","NOISE",0,cells[2].withTrimmedBottom(10));
   addRowKnob("vcoPwm","VCO PWM",cells[3]);addRowKnob("voiceDrive","DRIVE",cells[3].withTrimmedTop(100)); // the voices' drive, before the filters
-  area=section("FILTER A",steel,{564,panelY,432,panelH});cells=split(area,{1,1,1,1,1,1,1,2});
+  area=section("FILTER A",steel,{564,panelY,432,panelH});cells=split(area,{1,1,1,1,1,1,1,1.65f,1.35f});
   const char* filterIds[]={"hpfFreq","cutoff","resonance","env","lfoFilter","keytrack","velFilter"};const char* filterNames[]={"HPF","FREQ","RES","ENV","LFO","KYBD","VEL"};
   for(int i=0;i<7;++i)addFader(filterIds[i],filterNames[i],0,cells[i].withTrimmedBottom(10));
-  chipChoice("filterAType","MODEL",{"LADDER","SVF"},cells[7].withHeight(75),true);
-  chipChoice("slope","SLOPE",{"12","24"},cells[7].withTrimmedTop(100).withHeight(75),true);
+  chipChoice("filterAType","MODEL",{"LADDER","SVF","MULTI"},cells[7].withHeight(95),true);
+  chipChoice("slope","SLOPE",{"12","24"},cells[7].withTrimmedTop(110).withHeight(75),true);
+  // MULTI: MODE sweeps low-pass, notch, high-pass; BP takes the band-pass instead.
+  addRowKnob("filterMode","LP N HP",cells[8]);printedToggle("filterBP","BP",cells[8].withTrimmedTop(118).withSizeKeepingCentre(44,45));
   area=section("ENV / AMP",steel,{1002,panelY,244,panelH});cells=split(area,{1,1,1,1,1});
   const char* ampIds[]={"attack","decay","sustain","release","velocity"};const char* ampNames[]={"A","D","S","R","VEL"};
   for(int i=0;i<5;++i)addFader(ampIds[i],ampNames[i],0,cells[i].withTrimmedBottom(10));

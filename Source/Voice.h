@@ -97,7 +97,7 @@ struct ModulationBus {
 class FilterSlot {
 public:
  void prepare(double sr) { sampleRate=float(sr);configured=false;lastLadderCutoff=lastSvfCutoff=-1.f; for(auto& f:svf){f.prepare({sr,512,1});f.setType(dsp::StateVariableTPTFilterType::lowpass);} reset(); }
- void reset() { ladder.fill(0.f); for(auto& f:svf)f.reset(); }
+ void reset() { ladder.fill(0.f); for(auto& f:svf)f.reset(); multi={}; }
  void setDrive(float amount) { drive=jmax(.2f,amount); } // how hard the ladder is pushed: more = earlier, rounder limiting
  void configure(int model,int slope,float resonance) {
   if(configured&&model==type&&slope==stages&&resonance==lastResonance)return;
@@ -109,9 +109,14 @@ public:
   // state-variable model; as resonance comes in they move down so that the resonant peak sits on FREQ itself
   // (measured: with the poles left an octave up, the peak sang 1.6 to 2 times higher than the fader said).
   const float r=jlimit(0.f,1.f,resonance),k=jmin(1.f,r/.3f),blend=k*k*(3.f-2.f*k),onPeak=1.f+.35f*(1.f-r)*(1.f-r);
-  ladderScale=cutoffScale*(1.f-blend)+onPeak*blend; }
+  ladderScale=cutoffScale*(1.f-blend)+onPeak*blend;
+  damping=2.f*(1.f-.97f*jlimit(0.f,1.f,resonance)); } // MULTI: 2R from 2 (Q .5) down to .06 (Q about 16)
+ // MULTI (Vantage): a 12 dB state-variable filter in the spirit of the classic semi-modular voice. MODE sweeps the
+ // output continuously from low-pass through notch (low-pass plus high-pass) to high-pass; BP takes the band-pass.
+ void setMode(float sweep,bool bandPass){mode=jlimit(0.f,1.f,sweep);band=bandPass;}
  float process(float x,float cutoff) {
   if(type==0) return processLadder(x,cutoff);
+  if(type==2) return processMulti(x,cutoff);
   if(cutoff!=lastSvfCutoff){for(auto& f:svf)f.setCutoffFrequency(cutoff);lastSvfCutoff=cutoff;}
   x=svf[0].processSample(0,x);
   if(stages)x=svf[1].processSample(0,x);
@@ -143,6 +148,21 @@ private:
   // above the rest of the sound instead of being flattened into it.
   return (1.f-selfOscillationCut*sing)*std::tanh((stages?y:tap)/inputLevel*outputLevel*(1.f+bassReturn*jmin(feedback,maxFeedback))*outputHeadroom)/outputHeadroom*.85f;
  }
+ // One or two (24 dB) state-variable stages solved without delay in the loop (trapezoidal integrators). The band-pass
+ // state is softly limited, so a high resonance thickens and rings rather than screaming; the output stage is the same
+ // soft limit as the other models. Weights: low-pass full up to the middle of MODE, high-pass full from the middle,
+ // both full in the middle (the notch), so the level holds across the sweep.
+ float processMulti(float x,float cutoff){
+  if(cutoff!=lastMultiCutoff){multiG=std::tan(MathConstants<float>::pi*jmin(cutoff,sampleRate*.45f)/sampleRate);lastMultiCutoff=cutoff;}
+  const float g=multiG,k=damping,norm=1.f/(1.f+g*(g+k)),low=jmin(1.f,2.f*(1.f-mode)),high=jmin(1.f,2.f*mode);
+  float y=x;
+  for(int s=0;s<=stages;++s){auto& st=multi[size_t(s)];
+   const float hp=(y-(k+g)*st[0]-st[1])*norm,bp=g*hp+st[0],lp=g*bp+st[1];
+   st[0]=2.f*std::tanh(.5f*(g*hp+bp));st[1]=g*bp+lp;
+   y=band?bp*3.2f*std::sqrt(k*.5f):low*lp+high*hp;} // band-pass: the peak rises with resonance, the level holds
+  return std::tanh(y);
+ }
+ std::array<std::array<float,2>,2> multi{};float multiG=0.f,lastMultiCutoff=-1.f,damping=2.f,mode=0.f;bool band=false;
  bool configured=false;float lastResonance=-1.f,lastLadderCutoff=-1.f,lastSvfCutoff=-1.f,cachedG=0.f;
  std::array<float,4> ladder{}; std::array<dsp::StateVariableTPTFilter<float>,2> svf; float sampleRate=44100.f,feedback=.4f,drive=1.2f,ladderScale=cutoffScale; int type=0,stages=1;
  // Ladder voicing, measured against the state-variable model and to adjust by ear.
@@ -216,6 +236,7 @@ public:
   if(hpfMode==2)highpass.setCutoffFrequency(40.f*std::pow(25.f,(hpfPos-.3f)/.7f));
   const float bassRate=1.f-std::exp(-MathConstants<float>::twoPi*bassBoostHz/float(2.*sr)); // runs at twice the rate (see below)
   a.configure(int(p("filterAType")),int(p("slope")),p("resonance"));b.configure(int(p("filterBType")),int(p("slopeB")),p("resonanceB"));
+  a.setMode(p("filterMode"),p("filterBP")>.5f);b.setMode(0.f,false); // MULTI: MODE and BP on filter A; filter B's multimode is a low-pass
   const int route=int(p("filterRoute"));
   const float cutoff=p("cutoff"),cutoffB=p("cutoffB"),amount=p("env"),amountB=p("envB"),velocity=p("velocity"),pwmDepth=p("pwm"),vcoPwmDepth=p("vcoPwm"),blend=p("filterBlend"),pitchDepth=p("lfoPitch"),vibratoDepth=p("wheelDepth"),filterDepth=p("lfoFilter"),envPitch=p("envPitch");
   OscillatorBank::Settings source;
