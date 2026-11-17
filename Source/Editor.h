@@ -6,7 +6,7 @@
 // controls, and under it a row of knobs and switches for shapes, modulation and the second filter.
 
 namespace orbitui {
- const Colour panel{0xff080909}, ink{0xfff0e5ca}, dim{0xffc1b99f}, amber{0xffd9772b}, teal{0xff3f82a0};
+ const Colour panel{0xff080909}, ink{0xfff0e5ca}, dim{0xffc1b99f}, amber{0xffd9772b}, teal{0xff7a5fae}; // Vantage: the playing sections in violet (the name "teal" is kept from Orbit)
  // Vantage: light steel grey section bars printed in near-black, beside the blue ones.
  const Colour steel{0xffc6ccd2}, steelInk{0xff15181b};
  const Colour neutral{0xffd9d3c3}, bright{0xffe6e0d1}, led{0xffedac62}, slot{0xff0b0c0d}, print{0xff141516};
