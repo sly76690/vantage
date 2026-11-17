@@ -39,13 +39,22 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
  StringArray userPresetNames() const {return PresetStorage(presetRoot()).names();}
  // Sounds: complete presets shipped by the installer (shared library), plus any the user drops in their own Presets/Sounds.
  static File sharedRoot(){return File::getSpecialLocation(File::commonApplicationDataDirectory).getChildFile("Application Support").getChildFile("SF Instruments").getChildFile("Vantage");}
+ // CHORD MEMORY: up to eight intervals above the key played, packed in one word (6 bits each, count in the top bits)
+ // so the panel can change it while the audio thread reads it. CHORD with keys held learns them; the lowest is the root.
+ static uint64 packChord(const Array<int>& intervals){uint64 packed=uint64(jmin(8,intervals.size()))<<60;for(int i=0;i<jmin(8,intervals.size());++i)packed|=uint64(jlimit(0,63,intervals[i]))<<(6*i);return packed;}
+ static Array<int> unpackChord(uint64 packed){Array<int> out;const int n=int(packed>>60);for(int i=0;i<n;++i)out.add(int((packed>>(6*i))&63));return out;}
+ bool learnChord(){Array<int> held;for(int n=0;n<128;++n)if(physicalHeld[size_t(n)].load())held.add(n);if(held.size()<2)return false;
+  Array<int> intervals;for(int n:held)if(intervals.size()<8)intervals.add(n-held[0]);chordPacked.store(packChord(intervals));return true;}
+ String chordText() const {StringArray parts;for(int i:unpackChord(chordPacked.load()))parts.add(String(i));return parts.joinIntoString(",");}
+ void setChordText(const String& text){Array<int> intervals;for(auto& part:StringArray::fromTokens(text,",",""))if(part.trim().isNotEmpty()&&intervals.size()<8)intervals.add(jlimit(0,63,part.getIntValue()));if(intervals.size()>=1)chordPacked.store(packChord(intervals));}
+ bool anyKeyHeld() const {for(const auto& k:physicalHeld)if(k.load())return true;return false;}
  bool voiceActive(int i) const {auto& v=main.value("mode")>.5f?main.voices8:main.voices6;return isPositiveAndBelow(i,v.getNumVoices())&&v.getVoice(i)->isVoiceActive();} // panel LEDs
  String soundName() const {return state.state.getProperty("soundName").toString();}
  StringArray soundNames() const {auto names=PresetStorage(sharedRoot(),"Sounds").names();names.mergeArray(PresetStorage(presetRoot(),"Sounds").names());names.sort(true);return names;}
  Result loadSound(const String& name){auto xml=PresetStorage(presetRoot(),"Sounds").load(name);if(!xml)xml=PresetStorage(sharedRoot(),"Sounds").load(name);if(!xml)return Result::fail("Son absent ou invalide dans Presets/Sounds.");
   MemoryBlock data;copyXmlToBinary(*xml,data);loadingPreset.store(true);setStateInformation(data.getData(),int(data.getSize()));loadingPreset.store(false);state.state.removeProperty("userPresetName",nullptr);state.state.setProperty("soundName",name,nullptr);modified.store(false);return Result::ok();}
  bool userPresetExists(const String& name) const {return PresetStorage(presetRoot()).exists(name);}
- Result saveUserPreset(const String& name,bool replace=false){auto saved=state.copyState();saved.setProperty("sequence",sequenceText(),nullptr);saved.setProperty("program",currentProgram.load(),nullptr);saved.setProperty("modified",false,nullptr);saved.setProperty("userPresetName",name,nullptr);saved.removeProperty("soundName",nullptr);auto xml=saved.createXml();auto result=PresetStorage(presetRoot()).save(name,*xml,replace);if(result.wasOk()){state.state.setProperty("userPresetName",name,nullptr);state.state.removeProperty("soundName",nullptr);modified.store(false);}return result;}
+ Result saveUserPreset(const String& name,bool replace=false){auto saved=state.copyState();saved.setProperty("sequence",sequenceText(),nullptr);saved.setProperty("chord",chordText(),nullptr);saved.setProperty("program",currentProgram.load(),nullptr);saved.setProperty("modified",false,nullptr);saved.setProperty("userPresetName",name,nullptr);saved.removeProperty("soundName",nullptr);auto xml=saved.createXml();auto result=PresetStorage(presetRoot()).save(name,*xml,replace);if(result.wasOk()){state.state.setProperty("userPresetName",name,nullptr);state.state.removeProperty("soundName",nullptr);modified.store(false);}return result;}
  Result loadUserPreset(const String& name){auto xml=PresetStorage(presetRoot()).load(name);if(!xml)return Result::fail("Preset absent, invalide ou inaccessible dans Presets/User.");MemoryBlock data;copyXmlToBinary(*xml,data);loadingPreset.store(true);setStateInformation(data.getData(),int(data.getSize()));loadingPreset.store(false);state.state.removeProperty("soundName",nullptr);state.state.setProperty("userPresetName",name,nullptr);modified.store(false);return Result::ok();}
  bool isPatchModified() const {return modified.load();}
  String sequenceText(){return sequenceCopy().toString();}
@@ -80,6 +89,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    "filterBType","cutoffB","resonanceB","envB","slopeB","filterRoute","filterBlend","voiceDrive",  // FILTER B, ROUTING
    "mode","voiceMode","age","voiceWidth","hold","chorusMode","chorus","fxDrive",                  // VOICES, CHORUS
    "voicePan1","voicePan2","voicePan3","voicePan4","voicePan5","voicePan6","voicePan7","voicePan8", // VOICE MODULES
+   "chordOn",                                                                                      // CHORD MEMORY
    "arpOn","arpSync","arpPattern","arpDivision","arpOctaves","arpTempo","arpGate","delayOn",      // ARPEGGIO
    "delayTime","delaySync","delayFeedback","delayMod","delayMix","reverbOn","reverbType","reverbSize", // DELAY, REVERB
    "reverbDamp","reverbColor","reverbMix","lfoManual","lfoTrig","atVolume","atLfo","atDrive",
@@ -97,7 +107,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
     {"fattack","Flt Attack"},{"fdecay","Flt Decay"},{"fsustain","Flt Sustain"},{"frelease","Flt Release"},{"envLink","Flt Env Src"},{"envInvert","A Env Pol"},{"envPitch","Env>Pitch"},{"pwmSource","PWM Source"},
     {"rate","LFO Rate"},{"lfoDelay","LFO Delay"},{"lfoShape","LFO Wave"},{"lfoPitch","LFO Pitch"},{"wheelDepth","Wheel Vib"},{"bendRange","Bend Range"},{"bendFilter","Bend>Filter"},{"unisonSpread","Uni Spread"},
     {"filterBType","B Model"},{"cutoffB","B Freq"},{"resonanceB","B Reso"},{"envB","B Env"},{"slopeB","B Slope"},{"filterRoute","Routing"},{"filterBlend","A/B Mix"},{"voiceDrive","Drive Pre"},
-    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"voicePan1","Pan 1"},{"voicePan2","Pan 2"},{"voicePan3","Pan 3"},{"voicePan4","Pan 4"},{"voicePan5","Pan 5"},{"voicePan6","Pan 6"},{"voicePan7","Pan 7"},{"voicePan8","Pan 8"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
+    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"chordOn","Chord"},{"voicePan1","Pan 1"},{"voicePan2","Pan 2"},{"voicePan3","Pan 3"},{"voicePan4","Pan 4"},{"voicePan5","Pan 5"},{"voicePan6","Pan 6"},{"voicePan7","Pan 7"},{"voicePan8","Pan 8"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
     {"arpOn","Arp On"},{"arpSync","Arp Sync"},{"arpPattern","Arp Mode"},{"arpDivision","Arp Step"},{"arpOctaves","Arp Range"},{"arpTempo","Arp Tempo"},{"arpGate","Arp Gate"},{"fxDrive","Drive Post"},
     {"delayTime","Dly Time"},{"delaySync","Dly Sync"},{"delayFeedback","Dly Fdbk"},{"delayMod","Dly Mod"},{"delayMix","Dly Level"},{"reverbType","Rev Type"},{"reverbSize","Rev Size"},{"reverbDamp","Rev Damp"},
     {"reverbColor","Rev Color"},{"reverbMix","Rev Level"},{"velFilter","Vel>Filter"},{"atFilter","Press>Filt"},{"delayOn","Dly On"},{"reverbOn","Rev On"},{"lfoSync","LFO Sync"},{"lfoKeyTrig","LFO KeyTrig"},{"envLfoTrig","Env LFO Trig"},{"wheelFilter","Wheel>Filt"},{"lfoManual","LFO Manual"},{"atVolume","Press>Vol"},{"atLfo","Press>LFO"},{"atDrive","Press>Drive"},{"lfoTrig","LFO Trig"},{"masterTune","Master Tune"}};
@@ -173,6 +183,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   keep(std::make_unique<AudioParameterBool>(ParameterID{"seqRest",1},label("seqRest","Seq Rest"),false));
   keep(std::make_unique<AudioParameterBool>(ParameterID{"seqPlay",1},label("seqPlay","Seq Play"),false));
   keep(std::make_unique<AudioParameterBool>(ParameterID{"seqOvd",1},label("seqOvd","Seq Overdub"),false)); // the REC key's second state
+  keep(std::make_unique<AudioParameterBool>(ParameterID{"chordOn",1},label("chordOn","Chord memory"),false)); // CHORD: each key plays the stored chord
   keep(std::make_unique<AudioParameterBool>(ParameterID{"seqLive",1},label("seqLive","Seq Live"),false)); // LIVE: while the sequence plays, the keys play over it
   keep(std::make_unique<AudioParameterBool>(ParameterID{"polyFilter",1},label("polyFilter","Poly-mod to filters"),false));
   add("osc1Level","Oscillator I level",0,1,1);add("osc2Width","Oscillator II pulse width",.08f,.92f,.5f);
@@ -278,7 +289,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
  const String getProgramName(int index) override {return isPositiveAndBelow(index,getNumPrograms())?patches()[size_t(index)].name:String();}
  void changeProgramName(int,const String&) override {}
  void prepareToPlay(double sr,int block) override {
-  blockCapacity=jmax(block,8192);chunkMidi.ensureSize(8192);
+  blockCapacity=jmax(block,8192);chunkMidi.ensureSize(8192);chordMidi.ensureSize(8192);chordUsed.fill(0);
   arp.prepare(sr);hold.prepare();sampleRate=sr;main.prepare(sr,blockCapacity);sequenceSound.prepare(sr,blockCapacity);
   sequenceBuffer.setSize(2,blockCapacity);sequenceTail=0;wasLayered=false;wasRecording=wasResting=wasOverdubbing=liveFresh=false;recordHeld.clearQuick();recordChord.clearQuick();
  }
@@ -306,6 +317,18 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    const int target=ccTarget[size_t(cc)].load();if(isPositiveAndBelow(target,getParameters().size()))getParameters()[target]->setValueNotifyingHost(float(message.getControllerValue())/127.f);
   }
   auto value=[this](const char* key){return state.getRawParameterValue(key)->load();};
+  // CHORD MEMORY: each key becomes the stored chord on its own pitch (before HOLD, the arpeggio and the sequencer,
+  // so they all see the chord). A key remembers the chord it started, so changing it never leaves a note hanging.
+  {const bool chordOn=value("chordOn")>.5f;const uint64 packed=chordPacked.load();chordMidi.clear();
+   for(const auto meta:midi){const auto msg=meta.getMessage();const int at=meta.samplePosition;
+    if(msg.isNoteOn()){const int n=msg.getNoteNumber(),key=(msg.getChannel()-1)*128+n;physicalHeld[size_t(n)].store(true);
+     chordUsed[size_t(key)]=chordOn?packed:0;if(!chordOn){chordMidi.addEvent(msg,at);continue;}
+     const int count=int(packed>>60);for(int i=0;i<count;++i){const int note=n+int((packed>>(6*i))&63);if(note<128)chordMidi.addEvent(MidiMessage::noteOn(msg.getChannel(),note,msg.getVelocity()),at);}}
+    else if(msg.isNoteOff()){const int n=msg.getNoteNumber(),key=(msg.getChannel()-1)*128+n;physicalHeld[size_t(n)].store(false);const uint64 used=chordUsed[size_t(key)];chordUsed[size_t(key)]=0;
+     if(used==0){chordMidi.addEvent(msg,at);continue;}
+     const int count=int(used>>60);for(int i=0;i<count;++i){const int note=n+int((used>>(6*i))&63);if(note<128)chordMidi.addEvent(MidiMessage::noteOff(msg.getChannel(),note),at);}}
+    else chordMidi.addEvent(msg,at);}
+   midi.swapWith(chordMidi);}
   hold.process(midi,value("hold")>.5f);
   double bpm=value("arpTempo"),samplesToGrid=-1;const int division=int(value("arpDivision"));
   if(value("arpSync")>.5f) if(auto* playHead=getPlayHead()) if(auto position=playHead->getPosition()) if(auto hostBpm=position->getBpm()) {
@@ -405,7 +428,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   for(int i=0;i<buffer.getNumSamples();++i) {float g=e.gain.getNextValue();for(int c=0;c<buffer.getNumChannels();++c) buffer.setSample(c,i,limit(buffer.getSample(c,i)*g));}
  }
  bool hasEditor() const override {return true;} AudioProcessorEditor* createEditor() override;
- void getStateInformation(MemoryBlock& dest) override {auto saved=state.copyState();saved.setProperty("sequence",sequenceText(),nullptr);saved.setProperty("program",currentProgram.load(),nullptr);saved.setProperty("modified",modified.load(),nullptr);auto xml=saved.createXml();
+ void getStateInformation(MemoryBlock& dest) override {auto saved=state.copyState();saved.setProperty("sequence",sequenceText(),nullptr);saved.setProperty("chord",chordText(),nullptr);saved.setProperty("program",currentProgram.load(),nullptr);saved.setProperty("modified",modified.load(),nullptr);auto xml=saved.createXml();
   if(state.getRawParameterValue("seqLive")->load()>.5f && (state.getRawParameterValue("seqPlay")->load()>.5f||state.getRawParameterValue("seqOvd")->load()>.5f)){
    bool queued=false,queuedLive=false;const auto frozen=sequenceLayer.forSave(queued,queuedLive);const bool frozenReady=queued?queuedLive:sequenceLayerReady.load();
    auto* live=xml->createNewChildElement("LiveSound");
@@ -440,6 +463,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
      if(!child.isValid()){child=ValueTree("PARAM");child.setProperty("id",id,nullptr);restored.addChild(child,-1,nullptr);}
      child.setProperty("value",value(id),nullptr);}}
    // A patch saved with a sequence brings it back; one saved without leaves the current sequence alone.
+   if(restored.hasProperty("chord")){setChordText(restored.getProperty("chord").toString());restored.removeProperty("chord",nullptr);} // a sound or session brings its chord
    if(restored.hasProperty("sequence")){Arpeggiator::Sequence loaded;loaded.fromString(restored.getProperty("sequence").toString());{const SpinLock::ScopedLockType lock(sequenceLock);sequence=loaded;sequenceSteps.store(sequence.length);currentSequenceSlot.store(-1);}restored.removeProperty("sequence",nullptr);}
    // Sessions and presets saved before state version 2 stored chorus mode as 0 = I, 1 = II.
    if(int(restored.getProperty("stateVersion",1))<2){for(auto child:restored)if(child.getProperty("id").toString()=="chorusMode")child.setProperty("value",float(child.getProperty("value"))+1.f,nullptr);}
@@ -511,6 +535,7 @@ private:
  std::atomic<int> currentProgram{0};
  double sampleRate=44100;Arpeggiator arp;Arpeggiator::Sequence sequence;SpinLock sequenceLock;Array<int> recordHeld,recordChord;bool wasRecording=false,wasResting=false,wasOverdubbing=false,liveFresh=false;std::atomic<bool> loadingPreset{false},restoredSequenceLayer{false},sequenceLayerReady{false};NoteHold hold;
  int blockCapacity=8192;MidiBuffer chunkMidi;
+ std::atomic<uint64> chordPacked{packChord({0,4,7})};std::array<std::atomic<bool>,128> physicalHeld{};std::array<uint64,2048> chordUsed{};MidiBuffer chordMidi;
  ParamLayer sequenceLayer;Engine main,sequenceSound;AudioBuffer<float> sequenceBuffer;int sequenceTail=0;bool wasLayered=false;
 };
 #include "Editor.h"

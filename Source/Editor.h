@@ -425,7 +425,7 @@ class Editor : public AudioProcessorEditor, private Timer {
  using APVTS = AudioProcessorValueTreeState;
  enum { designW = 1600, designH = 1000, left = 32, contentW = 1536, gap = 12 };
  enum { cheek = 26, frameW = designW + 2 * cheek }; // wide wooden end cheeks around the design surface
- enum { outputW = 116, keysW = 1536 - 186 - outputW - 8, stripH = 46 }; std::array<bool,8> voiceLit{}; // the keyboard leaves room for OUTPUT on its right
+ enum { outputW = 116, keysW = 1536 - 186 - outputW - 8, stripH = 46 }; std::array<bool,8> voiceLit{};Button* chordKey=nullptr; // the keyboard leaves room for OUTPUT on its right
  enum { headerY = 4, lineY = 104, panelY = 120, panelH = 242, row2Y = 382, row2H = 224, lowerY = 624, lowerH = 120, keysY = 764, keysH = 218 }; // Space below effects separates the keyboard from the editing surface.
  struct Section { String title; Colour colour; Rectangle<int> area; int page; };
  struct Fader { Slider slider; String id; bool followsLink = false; std::unique_ptr<APVTS::SliderAttachment> attachment; };
@@ -783,6 +783,10 @@ private:
   pitchWheel.onDragEnd=[this]{pitchWheel.setValue(0,sendNotificationSync);};
   place(pitchWheel,{left+10,keysY+52,62,156},-1);
   lfoTrigButton.getProperties().set("parameterId","lfoTrig");
+  // CHORD MEMORY: with keys held, CHORD learns them and turns on; with no key held it turns the chord on or off.
+  addToggle("chordOn","CHORD",-1,{left+94,keysY+2,72,30},0,orbitui::neutral);chordKey=&toggles.getLast()->button;chordKey->getProperties().set("fontSize",11.f);toggles.getLast()->attachment.reset();
+  chordKey->setClickingTogglesState(false);chordKey->onClick=[this]{auto* p=orbit.state.getParameter("chordOn");const bool learned=orbit.learnChord();
+   p->beginChangeGesture();p->setValueNotifyingHost(learned||p->getValue()<.5f?1.f:0.f);p->endChangeGesture();};
   keyboard.setScrollButtonsVisible(false); keyboard.setKeyWidth(float(keysW) / 36.f); keyboard.setOctaveForMiddleC(4); keyboard.setBlackNoteLengthProportion(.62f);
   place(keyboard, {left + 186, keysY + stripH + 6, keysW, keysH - stripH - 6}, -1);
   // VOICE MODULES: a strip above the keys, one module per voice: its number, an LED lit while it sounds, and its PAN.
@@ -960,6 +964,8 @@ private:
   else if (orbit.state.getRawParameterValue("seqRec")->load() > .5f) shown = "SEQ REC    STEP " + String(steps + 1) + " / 64    REST = SILENCE";
   else if (orbit.state.getRawParameterValue("seqPlay")->load() > .5f) shown = (orbit.sequenceSlot() >= 0 ? "SEQ " + String(orbit.sequenceSlot() + 1) : String("SEQ PLAY")) + "    " + String(steps) + " STEPS    " + (orbit.state.getRawParameterValue("seqLive")->load() > .5f ? "KEYS: PANEL SOUND    SEQ: ITS OWN" : "KEY = TRANSPOSE");
   sequenceEditor.refresh();
+  if (chordKey != nullptr) chordKey->setToggleState(orbit.state.getRawParameterValue("chordOn")->load() > .5f, dontSendNotification);
+  if (orbit.state.getRawParameterValue("chordOn")->load() > .5f) shown += "    CHORD " + orbit.chordText().replace(",", " ");
   if (recKey != nullptr) { const bool rec = orbit.state.getRawParameterValue("seqRec")->load() > .5f, ovd = orbit.state.getRawParameterValue("seqOvd")->load() > .5f;
    recKey->setToggleState(rec || ovd, dontSendNotification); recKey->setButtonText(ovd ? "OVD" : "REC");
    if (ovd != recKey->getProperties().contains("ledBlue")) { if (ovd) recKey->getProperties().set("ledBlue", true); else recKey->getProperties().remove("ledBlue"); recKey->repaint(); } }
