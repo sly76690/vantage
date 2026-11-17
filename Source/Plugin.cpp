@@ -39,6 +39,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
  StringArray userPresetNames() const {return PresetStorage(presetRoot()).names();}
  // Sounds: complete presets shipped by the installer (shared library), plus any the user drops in their own Presets/Sounds.
  static File sharedRoot(){return File::getSpecialLocation(File::commonApplicationDataDirectory).getChildFile("Application Support").getChildFile("SF Instruments").getChildFile("Vantage");}
+ bool voiceActive(int i) const {auto& v=main.value("mode")>.5f?main.voices8:main.voices6;return isPositiveAndBelow(i,v.getNumVoices())&&v.getVoice(i)->isVoiceActive();} // panel LEDs
  String soundName() const {return state.state.getProperty("soundName").toString();}
  StringArray soundNames() const {auto names=PresetStorage(sharedRoot(),"Sounds").names();names.mergeArray(PresetStorage(presetRoot(),"Sounds").names());names.sort(true);return names;}
  Result loadSound(const String& name){auto xml=PresetStorage(presetRoot(),"Sounds").load(name);if(!xml)xml=PresetStorage(sharedRoot(),"Sounds").load(name);if(!xml)return Result::fail("Son absent ou invalide dans Presets/Sounds.");
@@ -78,6 +79,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    "wheelFilter","velFilter","atFilter","bendRange","bendFilter","unisonSpread","masterTune","gain",// EXPRESSION, TUNE, VOLUME
    "filterBType","cutoffB","resonanceB","envB","slopeB","filterRoute","filterBlend","voiceDrive",  // FILTER B, ROUTING
    "mode","voiceMode","age","voiceWidth","hold","chorusMode","chorus","fxDrive",                  // VOICES, CHORUS
+   "voicePan1","voicePan2","voicePan3","voicePan4","voicePan5","voicePan6","voicePan7","voicePan8", // VOICE MODULES
    "arpOn","arpSync","arpPattern","arpDivision","arpOctaves","arpTempo","arpGate","delayOn",      // ARPEGGIO
    "delayTime","delaySync","delayFeedback","delayMod","delayMix","reverbOn","reverbType","reverbSize", // DELAY, REVERB
    "reverbDamp","reverbColor","reverbMix","lfoManual","lfoTrig","atVolume","atLfo","atDrive",
@@ -95,7 +97,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
     {"fattack","Flt Attack"},{"fdecay","Flt Decay"},{"fsustain","Flt Sustain"},{"frelease","Flt Release"},{"envLink","Flt Env Src"},{"envInvert","A Env Pol"},{"envPitch","Env>Pitch"},{"pwmSource","PWM Source"},
     {"rate","LFO Rate"},{"lfoDelay","LFO Delay"},{"lfoShape","LFO Wave"},{"lfoPitch","LFO Pitch"},{"wheelDepth","Wheel Vib"},{"bendRange","Bend Range"},{"bendFilter","Bend>Filter"},{"unisonSpread","Uni Spread"},
     {"filterBType","B Model"},{"cutoffB","B Freq"},{"resonanceB","B Reso"},{"envB","B Env"},{"slopeB","B Slope"},{"filterRoute","Routing"},{"filterBlend","A/B Mix"},{"voiceDrive","Drive Pre"},
-    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
+    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"voicePan1","Pan 1"},{"voicePan2","Pan 2"},{"voicePan3","Pan 3"},{"voicePan4","Pan 4"},{"voicePan5","Pan 5"},{"voicePan6","Pan 6"},{"voicePan7","Pan 7"},{"voicePan8","Pan 8"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
     {"arpOn","Arp On"},{"arpSync","Arp Sync"},{"arpPattern","Arp Mode"},{"arpDivision","Arp Step"},{"arpOctaves","Arp Range"},{"arpTempo","Arp Tempo"},{"arpGate","Arp Gate"},{"fxDrive","Drive Post"},
     {"delayTime","Dly Time"},{"delaySync","Dly Sync"},{"delayFeedback","Dly Fdbk"},{"delayMod","Dly Mod"},{"delayMix","Dly Level"},{"reverbType","Rev Type"},{"reverbSize","Rev Size"},{"reverbDamp","Rev Damp"},
     {"reverbColor","Rev Color"},{"reverbMix","Rev Level"},{"velFilter","Vel>Filter"},{"atFilter","Press>Filt"},{"delayOn","Dly On"},{"reverbOn","Rev On"},{"lfoSync","LFO Sync"},{"lfoKeyTrig","LFO KeyTrig"},{"envLfoTrig","Env LFO Trig"},{"wheelFilter","Wheel>Filt"},{"lfoManual","LFO Manual"},{"atVolume","Press>Vol"},{"atLfo","Press>LFO"},{"atDrive","Press>Drive"},{"lfoTrig","LFO Trig"},{"masterTune","Master Tune"}};
@@ -107,7 +109,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    // Version 5 deliberately changes the oscillator architecture; old sound identity is not preserved.
    std::vector<std::unique_ptr<RangedAudioParameter>> made;
    auto keep=[&made](auto parameter){made.push_back(std::move(parameter));};
-  keep(std::make_unique<AudioParameterChoice>(ParameterID{"mode",1},label("mode","Voices"),StringArray{"6 voices","8 voices"},0));
+  keep(std::make_unique<AudioParameterChoice>(ParameterID{"mode",1},label("mode","Voices"),StringArray{"6 voices","8 voices"},1)); // Vantage: eight voices by default
   // Values are shown on the scale printed around the control: the eleven marks read 0 to 10 (or -5 to +5 for a
   // control centred on zero), so mark 3 always displays 3.0. Controls with a real unit add it in brackets,
   // for example "4.0 (120 BPM)" or "6.3 (1800 Hz)".
@@ -198,6 +200,11 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   keep(std::make_unique<AudioParameterBool>(ParameterID{"lfoManual",1},label("lfoManual","LFO manual trigger mode"),false));
   keep(std::make_unique<AudioParameterBool>(ParameterID{"lfoTrig",1},label("lfoTrig","LFO trigger"),false));add("masterTune","Master tune (cents)",-50,50,0);add("atFilter","Pressure to filter",0,1,0);
   add("voiceDrive","Voice drive",0,1,.3f);add("age","Age",0,1,.3f);add("voiceWidth","Voice width",0,1,.5f);
+  // VOICE MODULES: each voice has its own place in the stereo field (WIDTH scales them all). The defaults alternate
+  // sides from the centre out, so a chord opens up as it grows.
+  {static const char* pans[8]={"voicePan1","voicePan2","voicePan3","voicePan4","voicePan5","voicePan6","voicePan7","voicePan8"};
+   static const char* panNames[8]={"Voice 1 pan","Voice 2 pan","Voice 3 pan","Voice 4 pan","Voice 5 pan","Voice 6 pan","Voice 7 pan","Voice 8 pan"};
+   static constexpr float places[8]={-.35f,.35f,-.7f,.7f,-.15f,.15f,-.9f,.9f};for(int i=0;i<8;++i)add(pans[i],panNames[i],-1,1,places[i]);}
   add("unisonSpread","Unison detune (cents)",0,40,12);add("bendRange","Pitch bend (semitones)",0,24,2);
   choice("filterRoute","Filter routing",{"A only","B only","A > B","B > A","Parallel"});
   choice("filterAType","Filter A model",{"Ladder","State variable","Multimode"},2); // Vantage: the multimode filter by default

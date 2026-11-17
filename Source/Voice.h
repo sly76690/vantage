@@ -341,7 +341,7 @@ private:
  // Vintage character, to adjust by ear: envelope time ratio per octave, punch length and its share of cutoff and level,
  // and the spread between voices at AGE = 10 (cutoff in octaves, envelope times, LFO speed).
  static constexpr float keyFollow=.85f,punchSeconds=.006f,punchCutoff=.4f,punchLevel=.25f;
- static constexpr float cutoffError=.12f,envelopeError=.15f,lfoRateError=.12f;
+ static constexpr float cutoffError=.2f,envelopeError=.25f,lfoRateError=.18f; // Vantage: voices further apart than Octant's (AGE)
  // Tuning values for the high-pass switch: starting points to adjust by ear, not hardware measurements.
  static constexpr float bassBoostHz=90.f,bassBoostGain=1.2f,polyFilterOctaves=3.f;int wheelValue=8192;
 };

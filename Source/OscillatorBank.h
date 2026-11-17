@@ -51,8 +51,8 @@ public:
   drift1+=driftFollow*(target1-drift1);drift2+=driftFollow*(target2-drift2);
   const double env=std::exp2(double(envelopeSemitones)/12.);
   // AGE is confined to the VCOs. DCO, envelopes, filters and LFO do not change with voice count.
-  const double detune1=std::exp2(settings.age*(6.*error1+4.*drift1)/1200.);
-  const double detune2=std::exp2(settings.age*(6.*error2+4.*drift2)/1200.);
+  const double detune1=std::exp2(settings.age*(9.*error1+4.*drift1)/1200.); // Vantage: up to 9 cents between voices at full AGE
+  const double detune2=std::exp2(settings.age*(9.*error2+4.*drift2)/1200.);
   const double dd=step(frequency*env),d1=step(frequency*range1*detune1*(settings.sync?1.:env));
   // LOW FREQ is free of keyboard tracking: 2 Hz at 8', with RANGE/TUNE/FINE still available.
   const double d2=step((settings.lowFrequency?2.:frequency*env)*range2*detune2*(settings.polyFreq&&poly!=0.f?std::exp2(double(polyFreqOctaves*poly)):1.));
