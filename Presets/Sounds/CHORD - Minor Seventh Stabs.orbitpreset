@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OrbitState stateVersion="5" program="0" modified="0" chord="0,3,7,10">
+  <PARAM id="mode" value="1.0"/>
+  <PARAM id="jupiterMix" value="1.0"/>
+  <PARAM id="osc1Shape" value="6.0"/>
+  <PARAM id="osc2Shape" value="6.0"/>
+  <PARAM id="envLink" value="0.0"/>
+  <PARAM id="chorusMode" value="0.0"/>
+  <PARAM id="filterAType" value="2.0"/>
+  <PARAM id="slope" value="0.0"/>
+  <PARAM id="hpfFreq" value="0.27"/>
+  <PARAM id="age" value="0.45"/>
+  <PARAM id="voiceWidth" value="0.8"/>
+  <PARAM id="vco1Wave" value="0.33"/>
+  <PARAM id="vco2Wave" value="0.33"/>
+  <PARAM id="detune" value="9.0"/>
+  <PARAM id="cutoff" value="800.0"/>
+  <PARAM id="resonance" value="0.22"/>
+  <PARAM id="env" value="0.6"/>
+  <PARAM id="chordOn" value="1.0"/>
+  <PARAM id="attack" value="0.003"/>
+  <PARAM id="decay" value="0.35"/>
+  <PARAM id="sustain" value="0.2"/>
+  <PARAM id="release" value="0.25"/>
+  <PARAM id="fattack" value="0.002"/>
+  <PARAM id="fdecay" value="0.28"/>
+  <PARAM id="fsustain" value="0.1"/>
+  <PARAM id="frelease" value="0.2"/>
+  <PARAM id="velFilter" value="0.4"/>
+  <PARAM id="voiceDrive" value="0.4"/>
+  <PARAM id="reverbType" value="1.0"/>
+  <PARAM id="reverbMix" value="0.16"/>
+  <PARAM id="delaySync" value="6.0"/>
+  <PARAM id="delayFeedback" value="0.25"/>
+  <PARAM id="delayMix" value="0.1"/>
+  <PARAM id="gain" value="0.4"/>
+</OrbitState>

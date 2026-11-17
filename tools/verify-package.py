@@ -33,8 +33,8 @@ with tempfile.TemporaryDirectory(prefix='pkg-verify.', dir=package.parent) as te
     if (expanded / 'Scripts').exists():
         raise SystemExit('Unexpected installer scripts')
     presets = list(root.rglob('*.orbitpreset'))
-    if len(presets) != 38:
-        raise SystemExit(f'Expected 38 presets, found {len(presets)}')
+    if len(presets) != 24:
+        raise SystemExit(f'Expected 24 presets, found {len(presets)}')
     bundles = [root / 'Applications/Vantage.app',
                root / 'Library/Audio/Plug-Ins/Components/Vantage.component',
                root / 'Library/Audio/Plug-Ins/VST3/Vantage.vst3']
