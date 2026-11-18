@@ -683,7 +683,9 @@ private:
    range.slider.setMouseDragSensitivity(140);
    compactKnob(i?"osc2Width":"vco1Width","WIDTH",{osc.getX()+270,y+15,45,68});
    if(!i)compactKnob("crossMod","X-MOD",{osc.getX()+335,y+15,65,68});
-   else{compactKnob("osc2Tune","TUNE",{osc.getX()+318,y+15,42,68});compactKnob("detune","FINE",{osc.getX()+360,y+15,42,68});
+   else{compactKnob("osc2Tune","TUNE",{osc.getX()+318,y+15,42,68});
+    {auto* tune=&faders.getLast()->slider;caption({},{osc.getX()+314,y+74,50,13},-1,11);auto* shown=labels.getLast();shown->getProperties().set("live",true); // TUNE in semitones under the knob
+     tune->onValueChange=[tune,shown]{shown->setText(tune->getTextFromValue(tune->getValue())+" st",dontSendNotification);};tune->onValueChange();}compactKnob("detune","FINE",{osc.getX()+360,y+15,42,68});
     printedToggle("oscSync","SYNC",{osc.getX()+405,y+26,27,45});printedToggle("vco2Low","LOW",{osc.getX()+435,y+26,27,45});}
   }
   // LFO: six waves (RAMP: falling saw, S&H: a random step per cycle) and its destinations: PITCH (both VCOs or one),
