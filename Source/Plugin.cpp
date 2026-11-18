@@ -5,6 +5,7 @@
 
 using namespace juce;
 #include "Arpeggiator.h"
+#include "FactoryBank.h"
 #include "PresetStorage.h"
 #include "EnsembleChorus.h"
 #include "Reverbs.h"
@@ -261,9 +262,22 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    {"PAD / Warm Horizon",1,700,.1f,1.5f,2,.8f,4,.05f,.2f,18,.4f,.3f}
   }};return bank;
  }
- int getNumPrograms() override {return int(patches().size());} int getCurrentProgram() override {return currentProgram.load();}
+ int getNumPrograms() override {return FactoryBank::order().size();} int getCurrentProgram() override {return currentProgram.load();}
+ // BANK / PATCH: Vantage's own factory sounds, embedded. A patch change keeps the performance settings (output level,
+ // arpeggiator, hold, bend range, sequencer keys) as they are.
  void setCurrentProgram(int index) override {
   if(!isPositiveAndBelow(index,getNumPrograms())) return;
+  if(auto xml=FactoryBank::load(FactoryBank::order()[index])){
+   static const StringArray performance{"gain","arpOn","arpSync","arpTempo","arpGate","arpDivision","arpPattern","arpOctaves","hold","bendRange"};
+   std::array<float,16> kept{};for(int i=0;i<performance.size();++i)kept[size_t(i)]=state.getParameter(performance[i])->getValue();
+   MemoryBlock data;copyXmlToBinary(*xml,data);loadingPreset.store(true);setStateInformation(data.getData(),int(data.getSize()));loadingPreset.store(false);
+   for(int i=0;i<performance.size();++i)state.getParameter(performance[i])->setValueNotifyingHost(kept[size_t(i)]);
+   currentProgram.store(index);state.state.removeProperty("userPresetName",nullptr);state.state.removeProperty("soundName",nullptr);modified.store(false);return;}
+  legacyProgram(index);
+ }
+ // The Orbit-era programs, kept only as a fallback if the embedded bank could not be read.
+ void legacyProgram(int index) {
+  if(!isPositiveAndBelow(index,int(patches().size()))) return;
   const auto& p=patches()[size_t(index)];
   // A patch change leaves the performance settings alone: output level, arpeggiator, hold, bend range.
   static const StringArray performance{"gain","arpOn","arpSync","arpTempo","arpGate","arpDivision","arpPattern","arpOctaves","hold","bendRange","seqRec","seqRest","seqPlay","seqOvd","seqLive"};
@@ -286,7 +300,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   if(index==13 || index==14){set("fattack",.012f);set("fdecay",.48f);set("fsustain",.55f);set("frelease",.22f);set("slope",0);set("keytrack",.35f);set("pwm",0);set("reverbMix",.09f);}
   currentProgram.store(index);state.state.removeProperty("userPresetName",nullptr);state.state.removeProperty("soundName",nullptr);modified.store(false);
  }
- const String getProgramName(int index) override {return isPositiveAndBelow(index,getNumPrograms())?patches()[size_t(index)].name:String();}
+ const String getProgramName(int index) override {return isPositiveAndBelow(index,getNumPrograms())?FactoryBank::order()[index].replace(" - "," / "):String();}
  void changeProgramName(int,const String&) override {}
  void prepareToPlay(double sr,int block) override {
   blockCapacity=jmax(block,8192);chunkMidi.ensureSize(8192);chordMidi.ensureSize(8192);chordUsed.fill(0);

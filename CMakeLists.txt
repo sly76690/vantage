@@ -16,7 +16,9 @@ juce_add_plugin(Vantage ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/Source/Assets/orbi
 juce_add_binary_data(OrbitReference SOURCES design/neo-vintage/reference-approved.png Source/Assets/orbit-icon.png
   Source/Assets/skin/knob.png Source/Assets/skin/fader.png Source/Assets/skin/led.png
   Source/Assets/skin/index_amber.png Source/Assets/skin/index_teal.png Source/Assets/skin/index_neutral.png) # our rendered knob, fader cap and LED
-target_link_libraries(Vantage PRIVATE OrbitReference)
+file(GLOB VANTAGE_FACTORY CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Presets/Sounds/*.orbitpreset")
+juce_add_binary_data(VantageFactory HEADER_NAME FactoryData.h NAMESPACE FactoryData SOURCES ${VANTAGE_FACTORY})
+target_link_libraries(Vantage PRIVATE OrbitReference VantageFactory)
 target_sources(Vantage PRIVATE Source/Plugin.cpp)
 if(APPLE)
   target_sources(Vantage PRIVATE Source/ForceTouch.mm) # trackpad force on the panel keyboard
@@ -25,7 +27,7 @@ target_compile_definitions(Vantage PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUC
 target_link_libraries(Vantage PRIVATE juce::juce_audio_utils juce::juce_dsp PUBLIC juce::juce_recommended_config_flags)
 juce_add_console_app(OrbitSmoke PRODUCT_NAME "Orbit Smoke Tests")
 target_sources(OrbitSmoke PRIVATE Tests/Smoke.cpp)
-target_link_libraries(OrbitSmoke PRIVATE "$<LINK_ONLY:Vantage>" juce::juce_audio_utils juce::juce_dsp)
+target_link_libraries(OrbitSmoke PRIVATE "$<LINK_ONLY:Vantage>" VantageFactory juce::juce_audio_utils juce::juce_dsp)
 target_compile_definitions(OrbitSmoke PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 enable_testing()
 add_test(NAME audio_smoke COMMAND OrbitSmoke)
