@@ -43,10 +43,12 @@ protected:
  void handleMidiEvent(const MidiMessage& message) override {if(message.isAllSoundOff()){allNotesOff(message.getChannel(),false);return;}Synthesiser::handleMidiEvent(message);}
  void renderVoices(AudioBuffer<float>& output,int start,int count)override {
   int n=mode==2?voices.size():1;for(int i=0;i<voices.size();++i)static_cast<Voice*>(voices[i])->setUnison(mode==2?(2.f*i/(n-1)-1)*value("unisonSpread"):0,mode==2?unisonGain(n):1.f);
-  // VOICE MODULES: each voice's own PAN, scaled by WIDTH; a single mono voice stays in the centre.
-  static const char* pans[8]={"voicePan1","voicePan2","voicePan3","voicePan4","voicePan5","voicePan6","voicePan7","voicePan8"};
-  const float width=wide&&mode!=1?value("voiceWidth"):0.f;
-  for(int i=0;i<voices.size();++i)static_cast<Voice*>(voices[i])->setPan(value(pans[i%8])*width);
+  // SPREAD, scaled by WIDTH; a single mono voice stays in the centre.
+  static constexpr float places[8]={-.35f,.35f,-.7f,.7f,-.15f,.15f,-.9f,.9f}; // ALT: neighbours alternate sides
+  const float width=wide&&mode!=1?value("voiceWidth"):0.f;const int spread=int(value("voiceSpread"));
+  for(int i=0;i<voices.size();++i){auto* v=static_cast<Voice*>(voices[i]);const int note=v->getCurrentlyPlayingNote();
+   const float place=spread==1?(note>=0?jlimit(-1.f,1.f,float(note-60)/30.f):0.f):spread==2?v->randomPlace():places[i%8];
+   v->setPan(place*width);}
   Synthesiser::renderVoices(output,start,count);
  }
 private:

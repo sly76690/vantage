@@ -150,7 +150,7 @@ int main() {
  std::cout<<"PASS state restore\n";
  // Host pages: the panel order for controllers such as Push, every parameter present once, short names.
  {auto* first=dynamic_cast<juce::RangedAudioParameter*>(p->getParameters()[0]);auto* ninth=dynamic_cast<juce::RangedAudioParameter*>(p->getParameters()[8]);
-  if(!first||first->paramID!="polyEnv"||!ninth||ninth->paramID!="vco1Wave"||p->getParameters().size()!=130)return 74;
+  if(!first||first->paramID!="polyEnv"||!ninth||ninth->paramID!="vco1Wave"||p->getParameters().size()!=123)return 74;
   for(auto* b:p->getParameters())if(b->getName(100).length()>12){std::cerr<<"Parameter name too long for a controller: "<<b->getName(100)<<"\n";return 75;}}
  std::cout<<"PASS host pages of eight with short names\n";
  p->setRateAndBufferSizeDetails(48000,256);p->prepareToPlay(48000,256);

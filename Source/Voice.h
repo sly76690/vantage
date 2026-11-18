@@ -193,7 +193,7 @@ public:
  Voice(AudioProcessorValueTreeState& s,GlideMemory& previous,const ModulationBus& shared,const ParamLayer* frozen=nullptr) : state(s),parameterReads(s),previousPitch(previous),bus(shared),layer(frozen) {}
  bool canPlaySound(SynthesiserSound* s) override { return dynamic_cast<Sound*>(s)!=nullptr; }
  float p(const char* key) const {const auto* a=parameterReads.get(key);return layer!=nullptr?layer->get(a):a->load();}
- void setVoiceIndex(int index){oscillators.setVoiceIndex(index);
+ void setVoiceIndex(int index){oscillators.setVoiceIndex(index);placeRandom.setSeed(7919+index*131);
   // Fixed per-voice differences, balanced over the eight voices so that the instrument as a whole stays centred.
   static constexpr float cutoffs[8]={.2f,-.6f,.5f,-.9f,.75f,-.3f,.95f,-.6f},times[8]={-.4f,.7f,-.85f,.3f,.9f,-.6f,.15f,-.2f};
   static constexpr float lfoRates[8]={.5f,-.85f,.2f,.95f,-.35f,.7f,-.6f,-.55f};
@@ -207,7 +207,9 @@ public:
  void envelopes(){const float stretch=vintage?(1.f+p("age")*envelopeError*timeOffset)*keyStretch:1.f;
   env.setParameters({p("attack")*stretch,p("decay")*stretch,p("sustain"),p("release")*stretch});filterEnv.setParameters({p("fattack")*stretch,p("fdecay")*stretch,p("fsustain"),p("frelease")*stretch});gate.setParameters({.002f,.002f,1.f,.006f});}
  void retarget(int note,float velocity,int wheel){follow(note);held=true;double current=pitch.getCurrentValue();hz=MidiMessage::getMidiNoteInHertz(note);pitch.reset(getSampleRate(),p("portamento"));pitch.setCurrentAndTargetValue(current);pitch.setTargetValue(std::log2(hz));serial=++previousPitch.starts;previousPitch.pitch=pitched?std::exp2(current):hz;vel=velocity;pitchWheelMoved(wheel);}
+ float randomPlace() const {return place;} // SPREAD RANDOM: drawn for each new note
  void startNote(int note,float velocity,SynthesiserSound*,int wheel) override {
+  place=placeRandom.nextFloat()*2.f-1.f;
   // The glide runs on the pitch (log2 of the frequency), so an octave takes the same time wherever it is on the keyboard.
   // A new note glides from where the previous one is sounding at this instant, which this voice then keeps up to date
   // while it glides itself: a note played twice in a row, or a fast run, carries the glide on instead of cutting it short.
@@ -335,7 +337,7 @@ public:
 private:
  AudioProcessorValueTreeState& state;ParameterReadCache parameterReads;GlideMemory& previousPitch;uint64 serial=0;const ModulationBus& bus;const ParamLayer* layer=nullptr;SmoothedValue<double> pitch;Contour env,filterEnv,gate;FilterSlot a,b;HalfBand down;OscillatorBank oscillators;dsp::StateVariableTPTFilter<float> highpass;
  float cutNow=0,cutBNow=0,lastL=0,lastR=0,tailL=0,tailR=0;bool fresh=true,pitched=false;
- double hz=440;float vel=0,wheel=0,unisonCents=0,voiceGain=1,lfoAge=0,bass=0,pan=0,dc=0;
+ Random placeRandom{7919};float place=0;double hz=440;float vel=0,wheel=0,unisonCents=0,voiceGain=1,lfoAge=0,bass=0,pan=0,dc=0;
  float pressure=0,pressureNow=0,lfoLast=0,manualLevel=0;double trigPhase=0,lfoOffset=0;bool held=false;
  bool vintage=false;float cutOffset=0,timeOffset=0,lfoTune=0,keyStretch=1,punch=0;
  // Vintage character, to adjust by ear: envelope time ratio per octave, punch length and its share of cutoff and level,

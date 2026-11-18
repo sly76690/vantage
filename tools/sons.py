@@ -10,7 +10,7 @@ from xml.sax.saxutils import quoteattr
 # oscLayer: 0 = VCO 1 only, 1 = VCO 2 only. POLY-MOD: polyEnv / polyOsc (-1..1) into polyFreq / polyWidth / polyFilter.
 # Sequence text: steps separated by ';', notes by ',', 'r' = rest (MIDI note numbers, 60 = C4).
 # Vantage: the multimode filter (filterAType 2) at 12 dB by default; filterMode 0 = low-pass, .5 = notch, 1 = high-pass;
-# filterBP = band-pass. chordOn + chord ("0,4,7": intervals above the key) = CHORD memory. voicePan1..8 = voice modules.
+# filterBP = band-pass. chordOn + chord ("0,4,7": intervals above the key) = CHORD memory. voiceSpread 0 alternate, 1 pitch, 2 random.
 BASE = {"mode": 1, "jupiterMix": 1, "osc1Shape": 6, "osc2Shape": 6, "envLink": 0, "chorusMode": 0,
         "filterAType": 2, "slope": 0, "hpfFreq": .27, "age": .45, "voiceWidth": .8}
 SAW = dict(vco1Wave=.33, vco2Wave=.33)
