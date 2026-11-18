@@ -89,6 +89,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    "wheelFilter","velFilter","atFilter","bendRange","bendFilter","unisonSpread","masterTune","gain",// EXPRESSION, TUNE, VOLUME
    "filterBType","cutoffB","resonanceB","envB","slopeB","filterRoute","filterBlend","voiceDrive",  // FILTER B, ROUTING
    "mode","voiceMode","age","voiceWidth","hold","chorusMode","chorus","fxDrive",                  // VOICES, CHORUS
+   "polyShape","polyMode","polyBP","lfoMode","lfoAmp","lfoOsc","atMode",                           // MODULATION
    "voiceSpread","chordOn",                                                                        // VOICE SPREAD, CHORD MEMORY
    "arpOn","arpSync","arpPattern","arpDivision","arpOctaves","arpTempo","arpGate","delayOn",      // ARPEGGIO
    "delayTime","delaySync","delayFeedback","delayMod","delayMix","reverbOn","reverbType","reverbSize", // DELAY, REVERB
@@ -107,7 +108,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
     {"fattack","Flt Attack"},{"fdecay","Flt Decay"},{"fsustain","Flt Sustain"},{"frelease","Flt Release"},{"envLink","Flt Env Src"},{"envInvert","A Env Pol"},{"envPitch","Env>Pitch"},{"pwmSource","PWM Source"},
     {"rate","LFO Rate"},{"lfoDelay","LFO Delay"},{"lfoShape","LFO Wave"},{"lfoPitch","LFO Pitch"},{"wheelDepth","Wheel Vib"},{"bendRange","Bend Range"},{"bendFilter","Bend>Filter"},{"unisonSpread","Uni Spread"},
     {"filterBType","B Model"},{"cutoffB","B Freq"},{"resonanceB","B Reso"},{"envB","B Env"},{"slopeB","B Slope"},{"filterRoute","Routing"},{"filterBlend","A/B Mix"},{"voiceDrive","Drive Pre"},
-    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"chordOn","Chord"},{"voiceSpread","Spread"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
+    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"chordOn","Chord"},{"voiceSpread","Spread"},{"polyShape","PM>Shape2"},{"polyMode","PM>Mode"},{"polyBP","PM>BandPass"},{"lfoMode","LFO>Mode"},{"lfoAmp","LFO>Level"},{"lfoOsc","LFO>VCO"},{"atMode","Press>Mode"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
     {"arpOn","Arp On"},{"arpSync","Arp Sync"},{"arpPattern","Arp Mode"},{"arpDivision","Arp Step"},{"arpOctaves","Arp Range"},{"arpTempo","Arp Tempo"},{"arpGate","Arp Gate"},{"fxDrive","Drive Post"},
     {"delayTime","Dly Time"},{"delaySync","Dly Sync"},{"delayFeedback","Dly Fdbk"},{"delayMod","Dly Mod"},{"delayMix","Dly Level"},{"reverbType","Rev Type"},{"reverbSize","Rev Size"},{"reverbDamp","Rev Damp"},
     {"reverbColor","Rev Color"},{"reverbMix","Rev Level"},{"velFilter","Vel>Filter"},{"atFilter","Press>Filt"},{"delayOn","Dly On"},{"reverbOn","Rev On"},{"lfoSync","LFO Sync"},{"lfoKeyTrig","LFO KeyTrig"},{"envLfoTrig","Env LFO Trig"},{"wheelFilter","Wheel>Filt"},{"lfoManual","LFO Manual"},{"atVolume","Press>Vol"},{"atLfo","Press>LFO"},{"atDrive","Press>Drive"},{"lfoTrig","LFO Trig"},{"masterTune","Master Tune"}};
@@ -190,7 +191,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   choice("osc1Octave","VCO 1 range",{"64'","32'","16'","8'","4'","2'"},3);
   choice("osc2Octave","VCO 2 range",{"64'","32'","16'","8'","4'","2'"},3);
   add("osc2Tune","Oscillator II semitones",-12,12,0);
-  choice("lfoShape","LFO waveform",{"Triangle","Sine","Saw","Square"});
+  choice("lfoShape","LFO waveform",{"Triangle","Sine","Saw","Square","Ramp down","Random"});
   add("lfoDelay","LFO delay (s)",0,3,0,.5f);add("lfoPitch","LFO pitch (semitones)",0,12,0);add("lfoFilter","LFO filter (octaves)",0,4,0);
   add("envPitch","Envelope pitch (semitones)",-24,24,0);add("wheelDepth","Mod wheel vibrato (semitones)",0,12,1);
   choice("reverbType","Reverb type",{"VINT","PLATE","SPACE"});
@@ -206,6 +207,13 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   keep(std::make_unique<AudioParameterBool>(ParameterID{"envLfoTrig",1},label("envLfoTrig","Envelopes on LFO cycle"),false));
   keep(std::make_unique<AudioParameterChoice>(ParameterID{"lfoSync",1},label("lfoSync","LFO sync"),StringArray{"FREE","4 BARS","2 BARS","1 BAR","1/2","1/4","1/8","1/16","1/4 T","1/8 T","1/16 T"},0));
   add("wheelFilter","Mod wheel to filter",0,1,0);
+  // MODULATION (Vantage): POLY-MOD also to VCO 2 SHAPE, filter MODE and band-pass; LFO to filter MODE and level, aimed
+  // at both VCOs or one for PITCH; pressure to filter MODE.
+  keep(std::make_unique<AudioParameterBool>(ParameterID{"polyShape",1},label("polyShape","Poly-Mod to shape 2"),false));
+  keep(std::make_unique<AudioParameterBool>(ParameterID{"polyMode",1},label("polyMode","Poly-Mod to filter mode"),false));
+  keep(std::make_unique<AudioParameterBool>(ParameterID{"polyBP",1},label("polyBP","Poly-Mod to band-pass"),false));
+  add("lfoMode","LFO to filter mode",0,1,0);add("lfoAmp","LFO to level",0,1,0);choice("lfoOsc","LFO pitch target",{"VCO 1+2","VCO 1","VCO 2"});
+  add("atMode","Pressure to filter mode",0,1,0);
   add("atVolume","Pressure to volume",0,1,0);add("atLfo","Pressure to LFO on the filters",0,1,0);add("atDrive","Pressure to drive",0,1,0);
   // LFO MAN: the LFO only runs while LFO TRIG is held (a panel key, or any learned MIDI button), its DELAY counted from the press.
   keep(std::make_unique<AudioParameterBool>(ParameterID{"lfoManual",1},label("lfoManual","LFO manual trigger mode"),false));
@@ -516,7 +524,9 @@ private:
   e.modulation.manual=e.value("lfoManual")>.5f;
   if(e.modulation.manual&&e.value("lfoTrig")>.5f){e.modulation.manualAge=e.manualCount;e.manualCount+=count;}else{e.manualCount=0;e.modulation.manualAge=-1;}
   for(int i=0;i<count;++i) {
-   const float t=float(e.lfoPhase);e.modulation.phase[size_t(i)]=t;e.modulation.lfo[size_t(i)]=ModulationBus::wave(shape,t);e.lfoPhase+=step;if(e.lfoPhase>=1)e.lfoPhase-=1;
+   const float t=float(e.lfoPhase);e.modulation.phase[size_t(i)]=t;
+   e.modulation.lfo[size_t(i)]=shape==5?e.held:ModulationBus::wave(shape,t); // RANDOM: a new value held for each cycle
+   e.lfoPhase+=step;if(e.lfoPhase>=1){e.lfoPhase-=1;e.held=e.randomLfo.nextFloat()*2.f-1.f;}
   }
  }
 
@@ -536,7 +546,7 @@ private:
    gain.reset(sr,0.02);gain.setCurrentAndTargetValue(value("gain"));}
   void reset(){voices8.allNotesOff(0,false);voices6.allNotesOff(0,false);chorus.reset();phaser.reset();outputDrive.reset(value("fxDrive"));echo.reset();reverb.reset();previousSix=previousEight=0;lfoPhase=manualCount=0;}
   AudioProcessorValueTreeState& state;ParameterReadCache parameterReads;const ParamLayer* layer;
-  GlideMemory previousSix,previousEight;ModulationBus modulation;double lfoPhase=0,manualCount=0;
+  GlideMemory previousSix,previousEight;ModulationBus modulation;double lfoPhase=0,manualCount=0;float held=0;Random randomLfo{4241};
   VoiceAllocator voices8,voices6;EnsembleChorus chorus;dsp::Phaser<float> phaser;CharacterDelay echo;OrbitReverb reverb;
   OutputDrive outputDrive;SmoothedValue<float> gain;int lastMode=-1;MidiBuffer silence;
  };

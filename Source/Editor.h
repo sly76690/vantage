@@ -632,11 +632,13 @@ private:
  void buildPanelA(){
   using namespace orbitui;
   // POLY-MOD: two signed sources (filter envelope, VCO 1), three destinations switched on and off.
-  auto area=section("POLY-MOD",steel,{32,panelY,282,panelH});auto cells=split(area,{1,1,1.3f});
+  // POLY-MOD: two signed sources (filter envelope, VCO 1), six destinations switched on and off: VCO 2 pitch, pulse
+  // width and shape, the filters' cutoff, the filter MODE (MULTI) and a blend into band-pass.
+  auto area=section("POLY-MOD",steel,{32,panelY,282,panelH});auto cells=split(area,{1,1,.9f,.9f});
   addFader("polyEnv","FILT ENV",0,cells[0].withTrimmedBottom(10));addFader("polyOsc","VCO 1",0,cells[1].withTrimmedBottom(10));
-  caption("DEST.",cells[2].withHeight(16),0);
-  const char* polyIds[]={"polyFreq","polyWidth","polyFilter"};const char* polyNames[]={"FREQ 2","PW 2","FILTER"};
-  for(int i=0;i<3;++i)printedToggle(polyIds[i],polyNames[i],cells[2].withTrimmedTop(22+i*58).withSizeKeepingCentre(52,45).withY(cells[2].getY()+22+i*58));
+  caption("DESTINATIONS",cells[2].getUnion(cells[3]).withHeight(16),0);
+  const char* polyIds[]={"polyFreq","polyWidth","polyShape","polyFilter","polyMode","polyBP"};const char* polyNames[]={"FREQ 2","PW 2","SHAPE 2","FILTER","MODE","BP"};
+  for(int i=0;i<6;++i){const auto& column=cells[2+i/3];printedToggle(polyIds[i],polyNames[i],column.withSizeKeepingCentre(52,45).withY(column.getY()+22+(i%3)*58));}
   area=section("MIXER",steel,{320,panelY,238,panelH});cells=split(area,{1,1,1,1.2f});
   addFader("oscLayer","VCO 2",0,cells[0].withTrimmedBottom(26));caption("VCO 1",cells[0].withY(area.getBottom()-23).withHeight(17),0,12);
   addFader("vcoSub","SUB",0,cells[1].withTrimmedBottom(10));addFader("vcoNoise","NOISE",0,cells[2].withTrimmedBottom(10));
@@ -659,47 +661,50 @@ private:
  }
  void buildRowTwo(){
   using namespace orbitui;
-  auto osc=section("OSCILLATORS",steel,{32,row2Y,560,row2H});
+  auto osc=section("OSCILLATORS",steel,{32,row2Y,470,row2H}); // Vantage: narrower, LFO / MODULATION takes the room
   for(int i=0;i<2;++i){const int y=osc.getY()+i*92;
    caption(i?"VCO 2":"VCO 1",{osc.getX(),y+40,43,22},-1,14);labels.getLast()->setFont(face(17.f,true).withExtraKerningFactor(.04f));labels.getLast()->setMinimumHorizontalScale(.5f); // printed like the rest of the panel
    tagRules.push_back(Rectangle<float>(float(osc.getX()+6),float(y+62),31.f,2.f));                                                 // with a short amber rule under it
    // One continuous SHAPE control per VCO: triangle, saw, square, then a narrowing pulse.
-   caption("SHAPE",{osc.getX()+100,y,110,14},-1,12);
-   auto& shape=addControl(i?"vco2Wave":"vco1Wave",Slider::RotaryHorizontalVerticalDrag,{osc.getX()+100,y+14,110,74},-1);
+   caption("SHAPE",{osc.getX()+52,y,110,14},-1,12);
+   auto& shape=addControl(i?"vco2Wave":"vco1Wave",Slider::RotaryHorizontalVerticalDrag,{osc.getX()+52,y+14,110,74},-1);
    shape.slider.getProperties().set("shapeScale",true);shape.slider.getProperties().set("faceDiameter",32.f);
    shape.slider.setRotaryParameters(MathConstants<float>::pi*1.25f,MathConstants<float>::pi*2.75f,true);
    // Direct choice: a click on TRI, SAW, SQR or PLS puts the knob exactly on that wave (the knob also has a detent on each).
-   const Point<float> centre(float(osc.getX()+155),float(y+51));
+   const Point<float> centre(float(osc.getX()+107),float(y+51));
    for(int k=0;k<4;++k){const float a=MathConstants<float>::pi*(1.25f+1.5f*float(k)/3.f);
     const auto at=centre+Point<float>(std::sin(a),-std::cos(a))*31.f;
     auto* stop=shapeStops.add(new ShapeStop(shape.slider,float(k)/3.f));place(*stop,Rectangle<int>(roundToInt(at.x)-16,roundToInt(at.y)-9,32,18),-1);}
 
-   caption("RANGE",{osc.getX()+251,y,96,14},-1,12);
-   auto& range=addControl(i?"osc2Octave":"osc1Octave",Slider::RotaryHorizontalVerticalDrag,{osc.getX()+251,y+14,96,74},-1);
+   caption("RANGE",{osc.getX()+170,y,96,14},-1,12);
+   auto& range=addControl(i?"osc2Octave":"osc1Octave",Slider::RotaryHorizontalVerticalDrag,{osc.getX()+170,y+14,96,74},-1);
    range.slider.getProperties().set("rangeSelector",true);range.slider.getProperties().set("faceDiameter",32.f);
    range.slider.setRotaryParameters(MathConstants<float>::pi*1.2f,MathConstants<float>::pi*2.8f,true);
    range.slider.setMouseDragSensitivity(140);
-   compactKnob(i?"osc2Width":"vco1Width","WIDTH",{osc.getX()+355,y+15,45,68});
-   if(!i)compactKnob("crossMod","X-MOD",{osc.getX()+426,y+15,65,68});
-   else{compactKnob("osc2Tune","TUNE",{osc.getX()+400,y+15,42,68});compactKnob("detune","FINE",{osc.getX()+442,y+15,42,68});
-    printedToggle("oscSync","SYNC",{osc.getX()+488,y+26,27,45});printedToggle("vco2Low","LOW",{osc.getX()+518,y+26,27,45});}
+   compactKnob(i?"osc2Width":"vco1Width","WIDTH",{osc.getX()+270,y+15,45,68});
+   if(!i)compactKnob("crossMod","X-MOD",{osc.getX()+335,y+15,65,68});
+   else{compactKnob("osc2Tune","TUNE",{osc.getX()+318,y+15,42,68});compactKnob("detune","FINE",{osc.getX()+360,y+15,42,68});
+    printedToggle("oscSync","SYNC",{osc.getX()+405,y+26,27,45});printedToggle("vco2Low","LOW",{osc.getX()+435,y+26,27,45});}
   }
-  auto mod=section("LFO / MODULATION",teal,{598,row2Y,334,row2H});
-  auto top=split(mod.withHeight(86),{1,1,1.8f,1});
+  // LFO: six waves (RAMP: falling saw, S&H: a random step per cycle) and its destinations: PITCH (both VCOs or one),
+  // the filter MODE and the level (tremolo), beside the filter, PWM and wheel routings.
+  auto mod=section("LFO / MODULATION",teal,{508,row2Y,424,row2H});
+  auto top=split(mod.withHeight(86),{1,1,2.7f,1,1,1});
   compactKnob("rate","RATE",top[0]);auto& rateKnob=faders.getLast()->slider;
-  compactKnob("lfoDelay","DELAY",top[1]);chipChoice("lfoShape","WAVE",{"TRI","SIN","SAW","SQR"},top[2].withHeight(64));compactKnob("lfoPitch","PITCH",top[3]);
-  auto bottom=split(mod.withTrimmedTop(94),{1.8f,1,1,1,1});
+  compactKnob("lfoDelay","DELAY",top[1]);chipChoice("lfoShape","WAVE",{"TRI","SIN","SAW","RAMP","SQR","S&H"},top[2].withHeight(64));
+  compactKnob("lfoPitch","PITCH",top[3]);compactKnob("lfoMode","MODE",top[4]);compactKnob("lfoAmp","AMP",top[5]);
+  auto bottom=split(mod.withTrimmedTop(94),{1.8f,1,1.1f,1,1,1});
   auto switches=split(bottom[0].withHeight(57),{1,1,1,1});
   caption({}, {top[0].getX(),top[0].getY()+62,top[0].getWidth(),14},-1,10);auto* rateValue=labels.getLast();rateValue->getProperties().set("live",true);
   addSync("lfoSync",5,rateKnob,switches[0].withHeight(45),-1,rateValue);
   printedToggle("lfoKeyTrig","KEY",switches[1]);printedToggle("envLfoTrig","ENV",switches[2]);printedToggle("lfoManual","MAN",switches[3]);
-  menuChoice("pwmSource","PWM",bottom[1]);compactKnob("envPitch","ENV>P",bottom[2]);compactKnob("wheelDepth","WHEEL",bottom[3]);compactKnob("wheelFilter","WHL>F",bottom[4]);
+  menuChoice("pwmSource","PWM",bottom[1]);menuChoice("lfoOsc","P>VCO",bottom[2]);compactKnob("envPitch","ENV>P",bottom[3]);compactKnob("wheelDepth","WHEEL",bottom[4]);compactKnob("wheelFilter","WHL>F",bottom[5]);
   auto filter=section("FILTER B",steel,{938,row2Y,220,row2H});auto cells=split(filter.withHeight(80),{1,1,1,1});
   compactKnob("cutoffB","FREQ",cells[0]);compactKnob("resonanceB","RES",cells[1]);compactKnob("envB","ENV",cells[2]);compactKnob("filterBlend","MIX",cells[3]);
   cells=split(filter.withTrimmedTop(94),{1,1});chipChoice("filterBType","MODEL",{"LADDER","SVF"},cells[0].withHeight(72),true);chipChoice("slopeB","SLOPE",{"12","24"},cells[1].withHeight(72),true);
   auto routing=section("ROUTING",steel,{1164,row2Y,200,row2H});chipChoice("filterRoute","",{"A","B","A>B","B>A","PAR"},routing.withHeight(65));
   caption("PRESSURE",routing.withTrimmedTop(80).withHeight(15),-1,12);
-  cells=split(routing.withTrimmedTop(100),{1,1,1,1});compactKnob("atFilter","FILTER",cells[0]);compactKnob("atVolume","AMP",cells[1]);compactKnob("atLfo","LFO",cells[2]);compactKnob("atDrive","DRIVE",cells[3]);
+  cells=split(routing.withTrimmedTop(100),{1,1,1,1,1});compactKnob("atFilter","FILT",cells[0]);compactKnob("atMode","MODE",cells[1]);compactKnob("atVolume","AMP",cells[2]);compactKnob("atLfo","LFO",cells[3]);compactKnob("atDrive","DRV",cells[4]);
   // EFFECTS, in three bands: CHORUS (mode and MIX) on a tinted well, PHASER on its own well, then the output DRIVE.
   auto fx=section("EFFECTS",teal,{1370,row2Y,198,row2H});const int quarter=fx.getWidth()*3/4;
   wells.push_back({fx.withHeight(62).expanded(4,0),teal.withAlpha(.22f)});
@@ -831,7 +836,7 @@ private:
    g.setColour(section.colour);g.fillRect(section.area.withY(section.area.getBottom()-3).withHeight(3));
   }
   g.setColour(steel);for(const auto& rule:tagRules)g.fillRect(rule);
-  g.setColour(ink.withAlpha(.2f));g.drawHorizontalLine(508,40,584);g.drawHorizontalLine(keysY-9,32,1568);
+  g.setColour(ink.withAlpha(.2f));g.drawHorizontalLine(508,40,494); // between VCO 1 and VCO 2g.drawHorizontalLine(keysY-9,32,1568);
   g.setColour(dim);g.setFont(face(10.5f));g.drawText("C"+String(octave)+" — C"+String(octave+5),left+88,keysY+96,84,16,Justification::centred);
   g.setColour(Colour(0xff020303));g.fillRect(left+186,keysY+stripH,keysW,6);
   // VOICE MODULES strip

@@ -22,6 +22,7 @@ python3 tools/verify-package.py build/Vantage-0.1.0.pkg
 
 - **Filtre MULTI** (filtre A, par défaut) : 12 dB à variables d'état, potard **LP N HP** continu (passe-bas → coupe-bande → passe-haut), touche **BP** (passe-bande), pente 12 / 24 dB, résonance douce. LADDER et SVF restent disponibles. Le filtre B peut aussi être en MULTI (passe-bas).
 - **Modules de voix** : bande au-dessus du clavier, une voix par module avec son voyant et son **PAN** ; WIDTH règle la largeur d'ensemble. **AGE** écarte davantage les voix (accord, filtre, enveloppes, LFO).
+- **MODULATION** : POLY-MOD (sources FILT ENV et VCO 1, bipolaires) vers 6 destinations : FREQ 2, PW 2, SHAPE 2, FILTER, MODE (mode du filtre MULTI) et BP (mélange vers le passe-bande). LFO à 6 formes (TRI, SIN, SAW, RAMP, SQR, S&H) vers PITCH (VCO 1+2, VCO 1 ou VCO 2 : P>VCO), MODE, AMP (trémolo), filtre et PWM. Pression vers FILT, MODE, AMP, LFO et DRV.
 - **CHORD** (mémoire d'accord) : tenir un accord et appuyer sur CHORD l'enregistre (8 notes max) ; chaque touche joue ensuite l'accord. Seul, CHORD allume ou éteint. L'accord est sauvegardé avec les sessions et les presets ; arpège et séquenceur reçoivent l'accord entier.
 - **24 sons d'usine** Vantage (`python3 tools/sons.py`), programmés de zéro : cuivres, nappes, accords (CHORD), claviers, basses, leads, séquences (appuyer sur PLAY) et effets.
 - Repris d'Octant : deux VCO par voix avec SHAPE continu, POLY-MOD, mixer, deux filtres routables, séquenceur 64 pas (REC / OVD / EDIT / LIVE, mémoires), arpège, effets (chorus, phaser, drive), delay, reverb.

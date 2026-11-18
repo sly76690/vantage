@@ -17,7 +17,7 @@ public:
   float vcoSub=0, vcoNoise=0;          // mixer of the VCO section: square one octave under VCO 1, white noise
   // POLY-MOD: the filter envelope and VCO 1 (each with its own signed amount) modulate VCO 2's frequency and/or
   // pulse width, voice by voice and at audio rate; the voice also sends the same signal to the filters.
-  float polyEnv=0, polyOsc=0; bool polyFreq=true, polyWidth=false;
+  float polyEnv=0, polyOsc=0; bool polyFreq=true, polyWidth=false, polyShape=false; // polyShape: POLY-MOD moves VCO 2's SHAPE
  };
  void setVoiceIndex(int index) {
   static constexpr float errors1[8]={.15f,-.55f,.8f,-.3f,.45f,-1.f,.65f,-.2f};
@@ -39,7 +39,8 @@ public:
    sub=next.sub;noise=next.noise;width=next.width;width1=next.width1;width2=next.width2;waveMix=next.wave;}
  }
  // filterEnvelope: the voice's filter envelope (0..1), the POLY-MOD envelope source.
- float process(double frequency,float envelopeSemitones,float pwm,float vcoPwm=0,float filterEnvelope=0) {
+ // ratio1 / ratio2: an extra pitch factor for one VCO only (LFO > PITCH aimed at VCO 1 or VCO 2).
+ float process(double frequency,float envelopeSemitones,float pwm,float vcoPwm=0,float filterEnvelope=0,double ratio1=1.,double ratio2=1.) {
   const auto smooth=[this](float& value,float target){value+=follow*(target-value);};
   smooth(blend,settings.blend);smooth(sourceMix,settings.sourceMix);smooth(level,settings.level);
   smooth(sub,settings.sub);smooth(noise,settings.noise);smooth(width,settings.width);
@@ -53,11 +54,12 @@ public:
   // AGE is confined to the VCOs. DCO, envelopes, filters and LFO do not change with voice count.
   const double detune1=std::exp2(settings.age*(9.*error1+4.*drift1)/1200.); // Vantage: up to 9 cents between voices at full AGE
   const double detune2=std::exp2(settings.age*(9.*error2+4.*drift2)/1200.);
-  const double dd=step(frequency*env),d1=step(frequency*range1*detune1*(settings.sync?1.:env));
+  const double dd=step(frequency*env),d1=step(frequency*ratio1*range1*detune1*(settings.sync?1.:env));
   // LOW FREQ is free of keyboard tracking: 2 Hz at 8', with RANGE/TUNE/FINE still available.
-  const double d2=step((settings.lowFrequency?2.:frequency*env)*range2*detune2*(settings.polyFreq&&poly!=0.f?std::exp2(double(polyFreqOctaves*poly)):1.));
+  const double d2=step((settings.lowFrequency?2.:frequency*env)*ratio2*range2*detune2*(settings.polyFreq&&poly!=0.f?std::exp2(double(polyFreqOctaves*poly)):1.));
   const float pw2=juce::jlimit(.04f,.96f,width2+vcoPwm+(settings.polyWidth?polyWidthDepth*poly:0.f));
-  const float second=settings.shape2==6?morph(vco2,d2,morph2,pw2-width2):oscillator(settings.shape2,vco2,d2,pw2,noise2);
+  const float shape2Now=settings.polyShape?juce::jlimit(0.f,1.f,morph2+polyShapeDepth*poly):morph2;
+  const float second=settings.shape2==6?morph(vco2,d2,shape2Now,pw2-width2):oscillator(settings.shape2,vco2,d2,pw2,noise2);
   const double dx=juce::jlimit(1.e-9,.45,d1*(1.+1.5*settings.crossMod*second));
   const float first=settings.shape1==6?morph(vco1,dx,morph1,vcoPwm):oscillator(settings.shape1,vco1,dx,juce::jlimit(.08f,.92f,width1+vcoPwm),noise1);
   lastFirst=first;
@@ -77,7 +79,7 @@ public:
 public:
  // The POLY-MOD amount of the last sample, for the voice to send on to the filters.
  float polyMod() const {return poly;}
- static constexpr float polyFreqOctaves=4.f,polyWidthDepth=.42f;
+ static constexpr float polyFreqOctaves=4.f,polyWidthDepth=.42f,polyShapeDepth=.5f;
 private:
  // MORPH: 0 triangle, 1/3 saw, 2/3 square, 1 narrow pulse; crossfades between neighbours, band-limited edges.
  static float morph(double t,double dt,float m,float pwm){

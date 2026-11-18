@@ -88,7 +88,7 @@ private:
 struct ModulationBus {
  std::vector<float> lfo,phase; int shape=0; double step=0; // value and phase per sample, waveform, cycles per sample
  bool manual=false; double manualAge=-1; // LFO MAN: samples since LFO TRIG was pressed, -1 while it is up
- static float wave(int shape,float t){if(shape==1)return std::sin(t*MathConstants<float>::twoPi);if(shape==2)return 2*t-1;if(shape==3)return t<.5f?1.f:-1.f;return t<.25f?4*t:(t<.75f?2-4*t:4*t-4);}
+ static float wave(int shape,float t){if(shape==1)return std::sin(t*MathConstants<float>::twoPi);if(shape==2)return 2*t-1;if(shape==3)return t<.5f?1.f:-1.f;if(shape==4)return 1-2*t;return t<.25f?4*t:(t<.75f?2-4*t:4*t-4);}
 };
 
 // Two independently selectable low-pass topologies; each slot owns its history.
@@ -114,6 +114,8 @@ public:
  // MULTI (Vantage): a 12 dB state-variable filter in the spirit of the classic semi-modular voice. MODE sweeps the
  // output continuously from low-pass through notch (low-pass plus high-pass) to high-pass; BP takes the band-pass.
  void setMode(float sweep,bool bandPass){mode=jlimit(0.f,1.f,sweep);band=bandPass;}
+ // Per-sample modulation of MULTI: an offset on MODE and an amount of band-pass blended in (POLY-MOD, LFO, pressure).
+ void modulate(float modeOffset,float bandAmount){modeMod=modeOffset;bandMod=bandAmount;}
  float process(float x,float cutoff) {
   if(type==0) return processLadder(x,cutoff);
   if(type==2) return processMulti(x,cutoff);
@@ -154,15 +156,16 @@ private:
  // both full in the middle (the notch), so the level holds across the sweep.
  float processMulti(float x,float cutoff){
   if(cutoff!=lastMultiCutoff){multiG=std::tan(MathConstants<float>::pi*jmin(cutoff,sampleRate*.45f)/sampleRate);lastMultiCutoff=cutoff;}
-  const float g=multiG,k=damping,norm=1.f/(1.f+g*(g+k)),low=jmin(1.f,2.f*(1.f-mode)),high=jmin(1.f,2.f*mode);
+  const float m=jlimit(0.f,1.f,mode+modeMod),bandMix=jlimit(0.f,1.f,(band?1.f:0.f)+bandMod);
+  const float g=multiG,k=damping,norm=1.f/(1.f+g*(g+k)),low=jmin(1.f,2.f*(1.f-m)),high=jmin(1.f,2.f*m);
   float y=x;
   for(int s=0;s<=stages;++s){auto& st=multi[size_t(s)];
    const float hp=(y-(k+g)*st[0]-st[1])*norm,bp=g*hp+st[0],lp=g*bp+st[1];
    st[0]=2.f*std::tanh(.5f*(g*hp+bp));st[1]=g*bp+lp;
-   y=band?bp*3.2f*std::sqrt(k*.5f):low*lp+high*hp;} // band-pass: the peak rises with resonance, the level holds
+   y=(1.f-bandMix)*(low*lp+high*hp)+bandMix*bp*3.2f*std::sqrt(k*.5f);} // band-pass: the peak rises with resonance, the level holds
   return std::tanh(y);
  }
- std::array<std::array<float,2>,2> multi{};float multiG=0.f,lastMultiCutoff=-1.f,damping=2.f,mode=0.f;bool band=false;
+ std::array<std::array<float,2>,2> multi{};float multiG=0.f,lastMultiCutoff=-1.f,damping=2.f,mode=0.f,modeMod=0.f,bandMod=0.f;bool band=false;
  bool configured=false;float lastResonance=-1.f,lastLadderCutoff=-1.f,lastSvfCutoff=-1.f,cachedG=0.f;
  std::array<float,4> ladder{}; std::array<dsp::StateVariableTPTFilter<float>,2> svf; float sampleRate=44100.f,feedback=.4f,drive=1.2f,ladderScale=cutoffScale; int type=0,stages=1;
  // Ladder voicing, measured against the state-variable model and to adjust by ear.
@@ -248,8 +251,10 @@ public:
   source.shape1=int(p("osc1Shape"));source.shape2=int(p("osc2Shape"));source.range1=int(p("osc1Octave"));source.range2=int(p("osc2Octave"));
   source.sync=p("oscSync")>.5f;source.lowFrequency=p("vco2Low")>.5f;
   source.morph1=p("vco1Wave");source.morph2=p("vco2Wave");source.vcoSub=p("vcoSub");source.vcoNoise=p("vcoNoise");
-  source.polyEnv=p("polyEnv");source.polyOsc=p("polyOsc");source.polyFreq=p("polyFreq")>.5f;source.polyWidth=p("polyWidth")>.5f;
-  const bool polyFilter=p("polyFilter")>.5f;
+  source.polyEnv=p("polyEnv");source.polyOsc=p("polyOsc");source.polyFreq=p("polyFreq")>.5f;source.polyWidth=p("polyWidth")>.5f;source.polyShape=p("polyShape")>.5f;
+  const bool polyFilter=p("polyFilter")>.5f,polyMode=p("polyMode")>.5f,polyBand=p("polyBP")>.5f;
+  // MODULATION of the filter MODE (MULTI): LFO, pressure and POLY-MOD; LFO > AMP (tremolo); LFO > PITCH on both VCOs or one.
+  const float lfoModeDepth=p("lfoMode")*.5f,pressMode=p("atMode")*.5f,lfoAmpDepth=p("lfoAmp");const int lfoOsc=int(p("lfoOsc"));
   oscillators.configure(source,fresh);
   const bool linked=p("envLink")>.5f;
   // VCA mode GATE: the amplifier simply opens and closes with the key; the ADSR keeps running for a filter that follows it.
@@ -291,8 +296,9 @@ public:
    const float open=gate.getNextSample(),amp=gated?open:(vcaSource==2?fe:e);
    pressureNow+=pressRate*(pressure-pressureNow);
    float lfoNow=bus.lfo[size_t(start+i)],t=bus.phase[size_t(start+i)];
-   if(keyTrig){trigPhase+=ownStep;trigPhase-=std::floor(trigPhase);t=float(trigPhase);lfoNow=ModulationBus::wave(bus.shape,t);}
-   else if(ownLfo){lfoOffset+=lfoDrift;lfoOffset-=std::floor(lfoOffset);t=bus.phase[size_t(start+i)]+float(lfoOffset);t-=std::floor(t);lfoNow=ModulationBus::wave(bus.shape,t);}
+   const bool random=bus.shape==5; // RANDOM (sample and hold) comes from the shared LFO: one value for the whole instrument per step
+   if(keyTrig){trigPhase+=ownStep;trigPhase-=std::floor(trigPhase);t=float(trigPhase);if(!random)lfoNow=ModulationBus::wave(bus.shape,t);}
+   else if(ownLfo&&!random){lfoOffset+=lfoDrift;lfoOffset-=std::floor(lfoOffset);t=bus.phase[size_t(start+i)]+float(lfoOffset);t-=std::floor(t);lfoNow=ModulationBus::wave(bus.shape,t);}
    if(envTrig&&held&&t<lfoLast-.5f){env.noteOn();filterEnv.noteOn();} // the LFO has just started a new cycle
    lfoLast=t;
    float lfoFade=lfoDelay<1.f?1.f:jlimit(0.f,1.f,(lfoAge-lfoHold)/lfoRamp);
@@ -305,7 +311,10 @@ public:
    cutNow+=follow5ms*(cutoff-cutNow);cutBNow+=follow5ms*(cutoffB-cutBNow);
    const bool gliding=pitch.isSmoothing();const double pitchNow=pitch.getNextValue(),frequency=gliding?std::exp2(pitchNow):hz; // exactly the note once the glide is over
    if(serial==previousPitch.starts)previousPitch.pitch=frequency;
-   const double frequencyNow=frequency*bend*std::exp2((modulation*pitchDepth+lfoNow*vibratoDepth*wheel)/12.);
+   const double lfoRatio=std::exp2(double(modulation*pitchDepth)/12.);
+   const double frequencyNow=frequency*bend*std::exp2(double(lfoNow*vibratoDepth*wheel)/12.)*(lfoOsc==0?lfoRatio:1.);
+   const double ratio1=lfoOsc==1?lfoRatio:1.,ratio2=lfoOsc==2?lfoRatio:1.;
+   const float modeShift=modulation*lfoModeDepth+pressureNow*pressMode;
    const float pwmSignal=pwmSource==0?.18f*modulation:pwmSource==2?.4f*fe:pwmSource==3?-.4f*fe:pwmSource==4?.4f*e:pwmSource==5?-.4f*e:0.f; // LFO, MAN, filter env +/-, amp env +/-
    punch*=punchDecay; // the percussive front of a vintage note
    const float caBase=jlimit(25.f,float(sr*.45),(1.f+punchCutoff*punch)*cutNow*cutSpread*tracking*velocityOpen*wheelOpen*std::exp2(pressFilter*pressureNow)*bendCutoff*std::pow(2.f,fe*amount*polarity*6+modulation*filterDepth+lfoNow*pressLfo*pressureNow));
@@ -318,7 +327,8 @@ public:
    if(pressDrive>0.f&&pressureNow>.0005f){g=jmin(1.f,grit+pressDrive*pressureNow);gPush=1.f+3.f*g;gLean=.15f*g;gOffset=std::tanh(gLean);gScale=(1.f+g)/gPush;gMix=jmin(1.f,g*4.f);}
    float twice[2];
    for(int k=0;k<2;++k){
-    float sample=oscillators.process(frequencyNow,fe*envPitch,pwmSignal*pwmDepth,pwmSignal*vcoPwmDepth,fe);
+    float sample=oscillators.process(frequencyNow,fe*envPitch,pwmSignal*pwmDepth,pwmSignal*vcoPwmDepth,fe,ratio1,ratio2);
+    {const float pm=oscillators.polyMod();a.modulate(modeShift+(polyMode?.5f*pm:0.f),polyBand?jmin(1.f,std::abs(pm)):0.f);}
     // POLY-MOD > FILTER: the same signal moves both cutoffs, up to three octaves each way, at audio rate.
     const float polyOpen=polyFilter?std::exp2(polyFilterOctaves*oscillators.polyMod()):1.f;
     const float ca=jlimit(25.f,float(sr*.9),caBase*polyOpen),cb=jlimit(25.f,float(sr*.9),cbBase*polyOpen);
@@ -328,7 +338,7 @@ public:
     twice[k]=sample;
    }
    float sample=down.process(twice[0],twice[1]);
-   sample*=amp*(1-velocity+velocity*vel)*.18f*voiceGain*(1.f+punchLevel*punch)*(pressVolume>0.f?std::exp2(pressVolume*pressureNow):1.f);
+   sample*=(1.f-lfoAmpDepth*.5f*(1.f-modulation))*amp*(1-velocity+velocity*vel)*.18f*voiceGain*(1.f+punchLevel*punch)*(pressVolume>0.f?std::exp2(pressVolume*pressureNow):1.f);
    lastL=sample*gainL;lastR=sample*gainR;tailL*=tailDecay;tailR*=tailDecay;
    for(int ch=0;ch<out.getNumChannels();++ch)out.addSample(ch,start+i,ch==0?lastL+tailL:(ch==1?lastR+tailR:sample));
    if(!(gated?gate.isActive():(vcaSource==2&&!linked?filterEnv.isActive():env.isActive()))){clearCurrentNote();break;}
