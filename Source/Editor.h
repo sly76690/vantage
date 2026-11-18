@@ -425,7 +425,7 @@ class Editor : public AudioProcessorEditor, private Timer {
  using APVTS = AudioProcessorValueTreeState;
  enum { designW = 1600, designH = 1000, left = 32, contentW = 1536, gap = 12 };
  enum { cheek = 26, frameW = designW + 2 * cheek }; // wide wooden end cheeks around the design surface
- enum { outputW = 116, keysW = 1536 - 186 - outputW - 8, stripH = 46, voicesW = keysW * 3 / 4 }; std::array<bool,8> voiceLit{};Button* chordKey=nullptr;TextButton tapButton{"TAP"};double lastTap=0;Array<double> tapGaps; // the keyboard leaves room for OUTPUT on its right
+ enum { outputW = 116, keysW = 1536 - 186 - outputW - 8 };Button* chordKey=nullptr;TextButton tapButton{"TAP"};double lastTap=0;Array<double> tapGaps; // the keyboard leaves room for OUTPUT on its right
  enum { headerY = 4, lineY = 104, panelY = 120, panelH = 242, row2Y = 382, row2H = 224, lowerY = 624, lowerH = 120, keysY = 764, keysH = 218 }; // Space below effects separates the keyboard from the editing surface.
  struct Section { String title; Colour colour; Rectangle<int> area; int page; };
  struct Fader { Slider slider; String id; bool followsLink = false; std::unique_ptr<APVTS::SliderAttachment> attachment; };
@@ -719,9 +719,10 @@ private:
  }
  void buildLowerRow(){
   using namespace orbitui;
-  auto area=section("VOICES",teal,{32,lowerY,300,lowerH});auto cells=split(area,{1,2.05f,.9f,.9f,1.75f,.5f});
+  auto area=section("VOICES",teal,{32,lowerY,300,lowerH});auto cells=split(area,{.95f,2.f,.9f,.95f,1.35f,1.55f});
   chipChoice("mode","COUNT",{"6","8"},cells[0].withHeight(65));chipChoice("voiceMode","",{"POLY","MONO","UNI"},cells[1].withHeight(65));
-  compactKnob("age","AGE",cells[2]);compactKnob("voiceWidth","WIDTH",cells[3]);chipChoice("vcaMode","VCA",{"ENV","GATE","F.ENV"},cells[4].withHeight(79),true);switches.getLast()->setLever();printedToggle("hold","HOLD",cells[5].withTrimmedTop(18).expanded(6,0).withRight(area.getRight()+4));
+  compactKnob("age","AGE",cells[2]);compactKnob("voiceWidth","WIDTH",cells[3]);menuChoice("voiceSpread","SPREAD",cells[4]); // WIDTH and SPREAD: how wide, and where each voice sits
+  chipChoice("vcaMode","VCA",{"ENV","GATE","F.ENV"},cells[5].withHeight(79),true);switches.getLast()->setLever(); // HOLD is beside the keys
   // GLIDE / UNISON: UNI sets how many voices stack in UNI mode, DETUNE how far apart they are tuned.
   area=section("GLIDE / UNISON",teal,{338,lowerY,220,lowerH});cells=split(area,{1.05f,.9f,.85f,1.2f,1});
   compactKnob("portamento","PORTA",cells[0]);compactKnob("bendRange","BEND",cells[1]);menuChoice("unisonVoices","UNI",cells[2]);compactKnob("unisonSpread","DETUNE",cells[3]);printedToggle("legato","LEGATO",cells[4].withTrimmedTop(18));
@@ -796,13 +797,12 @@ private:
   place(pitchWheel,{left+10,keysY+52,62,156},-1);
   lfoTrigButton.getProperties().set("parameterId","lfoTrig");
   // CHORD MEMORY: with keys held, CHORD learns them and turns on; with no key held it turns the chord on or off.
+  addToggle("hold","HOLD",-1,{left+10,keysY+2,62,30},0,orbitui::neutral);toggles.getLast()->button.getProperties().set("fontSize",11.f); // HOLD and CHORD: performance keys beside the keyboard
   addToggle("chordOn","CHORD",-1,{left+94,keysY+2,72,30},0,orbitui::neutral);chordKey=&toggles.getLast()->button;chordKey->getProperties().set("fontSize",11.f);toggles.getLast()->attachment.reset();
   chordKey->setClickingTogglesState(false);chordKey->onClick=[this]{auto* p=orbit.state.getParameter("chordOn");const bool learned=orbit.learnChord();
    p->beginChangeGesture();p->setValueNotifyingHost(learned||p->getValue()<.5f?1.f:0.f);p->endChangeGesture();};
   keyboard.setScrollButtonsVisible(false); keyboard.setKeyWidth(float(keysW) / 36.f); keyboard.setOctaveForMiddleC(4); keyboard.setBlackNoteLengthProportion(.62f);
-  place(keyboard, {left + 186, keysY + stripH + 6, keysW, keysH - stripH - 6}, -1);
-  // VOICES strip above the keys: an LED per voice, lit while it sounds, then SPREAD (where the voices sit in stereo).
-  chipChoice("voiceSpread","",{"ALT","PITCH","RANDOM"},{left+186+voicesW+70,keysY-16,keysW-voicesW-74,stripH+16}); // its name is painted on its left
+  place(keyboard, {left + 186, keysY + 6, keysW, keysH - 6}, -1);
   // OUTPUT beside the keys: VOLUME and TUNE, where the hand finds them while playing.
   auto out=section("OUTPUT",teal,{left+contentW-outputW,keysY,outputW,keysH});
   addRowKnob("gain","VOLUME",out.withHeight(84));compactKnob("masterTune","TUNE",out.withTrimmedTop(100).withHeight(70));
@@ -843,17 +843,9 @@ private:
    g.setColour(section.colour);g.fillRect(section.area.withY(section.area.getBottom()-3).withHeight(3));
   }
   g.setColour(steel);for(const auto& rule:tagRules)g.fillRect(rule);
-  g.setColour(ink.withAlpha(.2f));g.drawHorizontalLine(508,40,494); // between VCO 1 and VCO 2g.drawHorizontalLine(keysY-9,32,1568);
+  g.setColour(ink.withAlpha(.2f));g.drawHorizontalLine(508,40,494); /* between VCO 1 and VCO 2 */ g.drawHorizontalLine(keysY-9,32,1568);
   g.setColour(dim);g.setFont(face(10.5f));g.drawText("C"+String(octave)+" — C"+String(octave+5),left+88,keysY+96,84,16,Justification::centred);
-  g.setColour(Colour(0xff020303));g.fillRect(left+186,keysY+stripH,keysW,6);
-  // VOICE MODULES strip
-  for(int i=0;i<8;++i){const auto cell=voiceCell(i).reduced(2,1);g.setColour(Colour(0xff0d0f10));g.fillRoundedRectangle(cell.toFloat(),3.f);
-   g.setColour(ink.withAlpha(.14f));g.drawRoundedRectangle(cell.toFloat().reduced(.5f),3.f,1.f);
-   g.setColour(dim);g.setFont(face(13.f));g.drawText("VOICE "+String(i+1),cell.getX()+8,cell.getY()+5,60,14,Justification::centredLeft);
-   const Rectangle<float> led(float(cell.getX()+10),float(cell.getY()+25),9.f,9.f);const bool on=voiceLit[size_t(i)];
-   if(on){g.setColour(amber.withAlpha(.35f));g.fillEllipse(led.expanded(4.f));}
-   g.setColour(on?Colour(0xffffa040):Colour(0xff3a1c10));g.fillEllipse(led);g.setColour(Colours::black.withAlpha(.6f));g.drawEllipse(led,1.f);}
-  g.setColour(ink);g.setFont(legend(13.f));g.drawText("SPREAD",left+186+voicesW+6,keysY+14,62,18,Justification::centredLeft);
+  g.setColour(Colour(0xff020303));g.fillRect(left+186,keysY,keysW,6);
 
  }
 
@@ -953,10 +945,7 @@ private:
  }
 
  // Follows state the host or a preset can change behind the panel's back.
- Rectangle<int> voiceCell(int i) const {return {left+186+i*voicesW/8,keysY,voicesW/8,stripH};}
  void timerCallback() override {
-  {bool changed=false;for(int i=0;i<8;++i){const bool on=orbit.voiceActive(i);changed|=on!=voiceLit[size_t(i)];voiceLit[size_t(i)]=on;}
-   if(changed)surface.repaint(left+186,keysY,keysW,stripH);} // VOICE MODULES LEDs
   const int program = orbit.getCurrentProgram(); const auto userName = orbit.userPresetName(), sound = orbit.soundName(); const bool user = userName.isNotEmpty() || sound.isNotEmpty();
   if (program != lastProgram) { lastProgram = program; shownBank = program / 8; }
   for (int i = 0; i < patchButtons.size(); ++i) patchButtons[i]->setToggleState(!user && shownBank * 8 + i == program, dontSendNotification);

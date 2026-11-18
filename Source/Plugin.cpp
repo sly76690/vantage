@@ -222,7 +222,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   // SPREAD: where each voice sounds in the stereo field (WIDTH sets how wide): ALT alternates sides from the centre
   // out, so a chord opens up as it grows; PITCH puts the low notes left and the high notes right; RANDOM gives each new
   // note its own place.
-  choice("voiceSpread","Voice spread",{"Alternate","Pitch","Random"},0);
+  choice("voiceSpread","Voice spread",{"ALT","PITCH","RAND"},0);
   add("unisonSpread","Unison detune (cents)",0,40,12);choice("unisonVoices","Unison voices",{"1","2","3","4","5","6","7","8"},7);add("bendRange","Pitch bend (semitones)",0,24,2);
   choice("filterRoute","Filter routing",{"A only","B only","A > B","B > A","Parallel"});
   choice("filterAType","Filter A model",{"Ladder","State variable","Multimode"},2); // Vantage: the multimode filter by default
