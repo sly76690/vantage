@@ -90,7 +90,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
    "filterBType","cutoffB","resonanceB","envB","slopeB","filterRoute","filterBlend","voiceDrive",  // FILTER B, ROUTING
    "mode","voiceMode","age","voiceWidth","hold","chorusMode","chorus","fxDrive",                  // VOICES, CHORUS
    "polyShape","polyMode","polyBP","lfoMode","lfoAmp","lfoOsc","atMode",                           // MODULATION
-   "voiceSpread","chordOn",                                                                        // VOICE SPREAD, CHORD MEMORY
+   "voiceSpread","chordOn","unisonVoices",                                                                        // VOICE SPREAD, CHORD MEMORY
    "arpOn","arpSync","arpPattern","arpDivision","arpOctaves","arpTempo","arpGate","delayOn",      // ARPEGGIO
    "delayTime","delaySync","delayFeedback","delayMod","delayMix","reverbOn","reverbType","reverbSize", // DELAY, REVERB
    "reverbDamp","reverbColor","reverbMix","lfoManual","lfoTrig","atVolume","atLfo","atDrive",
@@ -108,7 +108,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
     {"fattack","Flt Attack"},{"fdecay","Flt Decay"},{"fsustain","Flt Sustain"},{"frelease","Flt Release"},{"envLink","Flt Env Src"},{"envInvert","A Env Pol"},{"envPitch","Env>Pitch"},{"pwmSource","PWM Source"},
     {"rate","LFO Rate"},{"lfoDelay","LFO Delay"},{"lfoShape","LFO Wave"},{"lfoPitch","LFO Pitch"},{"wheelDepth","Wheel Vib"},{"bendRange","Bend Range"},{"bendFilter","Bend>Filter"},{"unisonSpread","Uni Spread"},
     {"filterBType","B Model"},{"cutoffB","B Freq"},{"resonanceB","B Reso"},{"envB","B Env"},{"slopeB","B Slope"},{"filterRoute","Routing"},{"filterBlend","A/B Mix"},{"voiceDrive","Drive Pre"},
-    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"chordOn","Chord"},{"voiceSpread","Spread"},{"polyShape","PM>Shape2"},{"polyMode","PM>Mode"},{"polyBP","PM>BandPass"},{"lfoMode","LFO>Mode"},{"lfoAmp","LFO>Level"},{"lfoOsc","LFO>VCO"},{"atMode","Press>Mode"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
+    {"mode","Voices"},{"voiceMode","Assign"},{"age","Age"},{"voiceWidth","Width"},{"chordOn","Chord"},{"voiceSpread","Spread"},{"unisonVoices","Uni Voices"},{"polyShape","PM>Shape2"},{"polyMode","PM>Mode"},{"polyBP","PM>BandPass"},{"lfoMode","LFO>Mode"},{"lfoAmp","LFO>Level"},{"lfoOsc","LFO>VCO"},{"atMode","Press>Mode"},{"hold","Hold"},{"chorusMode","Chorus"},{"chorus","Chorus Mix"},{"gain","Volume"},
     {"arpOn","Arp On"},{"arpSync","Arp Sync"},{"arpPattern","Arp Mode"},{"arpDivision","Arp Step"},{"arpOctaves","Arp Range"},{"arpTempo","Arp Tempo"},{"arpGate","Arp Gate"},{"fxDrive","Drive Post"},
     {"delayTime","Dly Time"},{"delaySync","Dly Sync"},{"delayFeedback","Dly Fdbk"},{"delayMod","Dly Mod"},{"delayMix","Dly Level"},{"reverbType","Rev Type"},{"reverbSize","Rev Size"},{"reverbDamp","Rev Damp"},
     {"reverbColor","Rev Color"},{"reverbMix","Rev Level"},{"velFilter","Vel>Filter"},{"atFilter","Press>Filt"},{"delayOn","Dly On"},{"reverbOn","Rev On"},{"lfoSync","LFO Sync"},{"lfoKeyTrig","LFO KeyTrig"},{"envLfoTrig","Env LFO Trig"},{"wheelFilter","Wheel>Filt"},{"lfoManual","LFO Manual"},{"atVolume","Press>Vol"},{"atLfo","Press>LFO"},{"atDrive","Press>Drive"},{"lfoTrig","LFO Trig"},{"masterTune","Master Tune"}};
@@ -223,7 +223,7 @@ class Orbit : public AudioProcessor, private AudioProcessorValueTreeState::Liste
   // out, so a chord opens up as it grows; PITCH puts the low notes left and the high notes right; RANDOM gives each new
   // note its own place.
   choice("voiceSpread","Voice spread",{"Alternate","Pitch","Random"},0);
-  add("unisonSpread","Unison detune (cents)",0,40,12);add("bendRange","Pitch bend (semitones)",0,24,2);
+  add("unisonSpread","Unison detune (cents)",0,40,12);choice("unisonVoices","Unison voices",{"1","2","3","4","5","6","7","8"},7);add("bendRange","Pitch bend (semitones)",0,24,2);
   choice("filterRoute","Filter routing",{"A only","B only","A > B","B > A","Parallel"});
   choice("filterAType","Filter A model",{"Ladder","State variable","Multimode"},2); // Vantage: the multimode filter by default
   choice("filterBType","Filter B model",{"Ladder","State variable","Multimode"},1);

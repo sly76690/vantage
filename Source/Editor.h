@@ -425,7 +425,7 @@ class Editor : public AudioProcessorEditor, private Timer {
  using APVTS = AudioProcessorValueTreeState;
  enum { designW = 1600, designH = 1000, left = 32, contentW = 1536, gap = 12 };
  enum { cheek = 26, frameW = designW + 2 * cheek }; // wide wooden end cheeks around the design surface
- enum { outputW = 116, keysW = 1536 - 186 - outputW - 8, stripH = 46, voicesW = keysW * 3 / 4 }; std::array<bool,8> voiceLit{};Button* chordKey=nullptr; // the keyboard leaves room for OUTPUT on its right
+ enum { outputW = 116, keysW = 1536 - 186 - outputW - 8, stripH = 46, voicesW = keysW * 3 / 4 }; std::array<bool,8> voiceLit{};Button* chordKey=nullptr;TextButton tapButton{"TAP"};double lastTap=0;Array<double> tapGaps; // the keyboard leaves room for OUTPUT on its right
  enum { headerY = 4, lineY = 104, panelY = 120, panelH = 242, row2Y = 382, row2H = 224, lowerY = 624, lowerH = 120, keysY = 764, keysH = 218 }; // Space below effects separates the keyboard from the editing surface.
  struct Section { String title; Colour colour; Rectangle<int> area; int page; };
  struct Fader { Slider slider; String id; bool followsLink = false; std::unique_ptr<APVTS::SliderAttachment> attachment; };
@@ -722,14 +722,21 @@ private:
   auto area=section("VOICES",teal,{32,lowerY,300,lowerH});auto cells=split(area,{1,2.05f,.9f,.9f,1.75f,.5f});
   chipChoice("mode","COUNT",{"6","8"},cells[0].withHeight(65));chipChoice("voiceMode","",{"POLY","MONO","UNI"},cells[1].withHeight(65));
   compactKnob("age","AGE",cells[2]);compactKnob("voiceWidth","WIDTH",cells[3]);chipChoice("vcaMode","VCA",{"ENV","GATE","F.ENV"},cells[4].withHeight(79),true);switches.getLast()->setLever();printedToggle("hold","HOLD",cells[5].withTrimmedTop(18).expanded(6,0).withRight(area.getRight()+4));
-  area=section("GLIDE",teal,{338,lowerY,180,lowerH});cells=split(area,{1,1,1,1});
-  compactKnob("portamento","PORTA",cells[0]);compactKnob("bendRange","BEND",cells[1]);compactKnob("unisonSpread","SPREAD",cells[2]);printedToggle("legato","LEGATO",cells[3].withTrimmedTop(18));
-  area=section("ARPEGGIO",teal,{524,lowerY,300,lowerH});cells=split(area,{.75f,.85f,1.15f,1.f,1.f,1.f,1.f});
+  // GLIDE / UNISON: UNI sets how many voices stack in UNI mode, DETUNE how far apart they are tuned.
+  area=section("GLIDE / UNISON",teal,{338,lowerY,220,lowerH});cells=split(area,{1.05f,.9f,.85f,1.2f,1});
+  compactKnob("portamento","PORTA",cells[0]);compactKnob("bendRange","BEND",cells[1]);menuChoice("unisonVoices","UNI",cells[2]);compactKnob("unisonSpread","DETUNE",cells[3]);printedToggle("legato","LEGATO",cells[4].withTrimmedTop(18));
+  area=section("ARPEGGIO",teal,{564,lowerY,280,lowerH});cells=split(area,{.75f,.85f,1.15f,1.f,1.f,1.f,1.f});
   printedToggle("arpOn","ON",cells[0].withTrimmedTop(18));printedToggle("arpSync","SYNC",cells[1].withTrimmedTop(18));menuChoice("arpPattern","MODE",cells[2]);
   menuChoice("arpDivision","STEP",cells[3]);menuChoice("arpOctaves","OCT",cells[4]);compactKnob("arpTempo","TEMPO",cells[5]);compactKnob("arpGate","GATE",cells[6]);
+  // TAP: the tempo from the last taps (arpeggio, sequencer, synced delay and LFO when there is no host clock).
+  place(tapButton,cells[5].withTrimmedTop(62).withSizeKeepingCentre(42,19),-1);tapButton.getProperties().set("fontSize",11.f);tapButton.setWantsKeyboardFocus(false);
+  tapButton.onClick=[this]{const double now=Time::getMillisecondCounterHiRes()*.001,gap=now-lastTap;lastTap=now;
+   if(gap<.2||gap>2.){tapGaps.clearQuick();return;}tapGaps.add(gap);if(tapGaps.size()>4)tapGaps.remove(0);
+   double sum=0;for(double g:tapGaps)sum+=g;auto* p=orbit.state.getParameter("arpTempo");p->beginChangeGesture();
+   p->setValueNotifyingHost(p->convertTo0to1(float(jlimit(40.,300.,60.*tapGaps.size()/sum))));p->endChangeGesture();};
   // SEQUENCER keys: REC, then play one note or chord per step (REST for a silent step); PLAY, then hold a key to transpose.
   // SEQUENCER: its own section, on the arpeggio clock (TEMPO, STEP, GATE, SYNC).
-  area=section("SEQUENCER",teal,{830,lowerY,250,lowerH});cells=split(area,{.95f,.95f,.95f,.95f,1.1f,1.5f}); // EDIT and MEMORY apart
+  area=section("SEQUENCER",teal,{850,lowerY,250,lowerH});cells=split(area,{.95f,.95f,.95f,.95f,1.1f,1.5f}); // EDIT and MEMORY apart
   // REC works like a looper pedal: REC (red) records a new sequence; pressed again, OVD (blue): the recording ends, the
   // sequence plays and what you play joins it; pressed again, overdub ends and the sequence keeps playing.
   printedToggle("seqRec","REC",cells[0].withTrimmedTop(18));recKey=&toggles.getLast()->button;toggles.getLast()->attachment.reset();
@@ -758,12 +765,12 @@ private:
    menu.showMenuAsync(PopupMenu::Options().withTargetComponent(&seqMemory),[safe=Component::SafePointer<Editor>(this)](int result){
     if(safe==nullptr||result<=0)return;if(result>100)safe->orbit.storeSequence(result-101);else safe->orbit.loadSequence(result-1);});};
   restKey->onStateChange=[this]{const bool down=restKey->isDown();if(down==restDown)return;restDown=down;auto* p=orbit.state.getParameter("seqRest");p->beginChangeGesture();p->setValueNotifyingHost(down?1.f:0.f);p->endChangeGesture();};
-  area=section("DELAY",teal,{1086,lowerY,210,lowerH});cells=split(area,{1,1,1,1,.75f,.9f});
+  area=section("DELAY",teal,{1106,lowerY,210,lowerH});cells=split(area,{1,1,1,1,.75f,.9f});
   compactKnob("delayTime","TIME",cells[0]);delayTimeKnob=&faders.getLast()->slider;
   compactKnob("delayFeedback","FDBK",cells[1]);compactKnob("delayMod","MOD",cells[2]);compactKnob("delayMix","LEVEL",cells[3]);printedToggle("delayOn","ON",cells[4].withTrimmedTop(18));
   caption({},cells[0].withTrimmedTop(63).withHeight(12),-1,9);labels.getLast()->getProperties().set("live",true);
   addSync("delaySync",6,*delayTimeKnob,cells[5].withTrimmedTop(18).withHeight(45),-1,labels.getLast());
-  area=section("REVERB",teal,{1302,lowerY,266,lowerH});cells=split(area,{2.1f,1,1,1,1,.8f});
+  area=section("REVERB",teal,{1322,lowerY,246,lowerH});cells=split(area,{1.8f,1,1,1,1,.75f});
   chipChoice("reverbType","",{"VINT","PLATE","SPACE"},cells[0].withHeight(65));compactKnob("reverbSize","SIZE",cells[1]);compactKnob("reverbDamp","DAMP",cells[2]);compactKnob("reverbColor","TONE",cells[3]); /* TONE: COLOR ran into LEVEL */compactKnob("reverbMix","LEVEL",cells[4]);printedToggle("reverbOn","ON",cells[5].withTrimmedTop(18));
  }
  void buildKeyboard() {

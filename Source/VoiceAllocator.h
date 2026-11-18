@@ -42,7 +42,7 @@ protected:
  }
  void handleMidiEvent(const MidiMessage& message) override {if(message.isAllSoundOff()){allNotesOff(message.getChannel(),false);return;}Synthesiser::handleMidiEvent(message);}
  void renderVoices(AudioBuffer<float>& output,int start,int count)override {
-  int n=mode==2?voices.size():1;for(int i=0;i<voices.size();++i)static_cast<Voice*>(voices[i])->setUnison(mode==2?(2.f*i/(n-1)-1)*value("unisonSpread"):0,mode==2?unisonGain(n):1.f);
+  const int n=mode==2?unisonCount():1;for(int i=0;i<voices.size();++i)static_cast<Voice*>(voices[i])->setUnison(mode==2&&n>1?(2.f*float(jmin(i,n-1))/float(n-1)-1)*value("unisonSpread"):0,mode==2?unisonGain(n):1.f);
   // SPREAD, scaled by WIDTH; a single mono voice stays in the centre.
   static constexpr float places[8]={-.35f,.35f,-.7f,.7f,-.15f,.15f,-.9f,.9f}; // ALT: neighbours alternate sides
   const float width=wide&&mode!=1?value("voiceWidth"):0.f;const int spread=int(value("voiceSpread"));
@@ -53,6 +53,8 @@ protected:
  }
 private:
  struct Key{uint64 order=0;float velocity=0;bool down=false;};
+ // UNISON: how many voices stack on the note (1 to all of them).
+ int unisonCount()const{return jlimit(1,voices.size(),int(value("unisonVoices"))+1);}
  float value(const char* id)const{const auto* a=parameterReads.get(id);return layer!=nullptr?layer->get(a):a->load();}
  // Level of each voice in a unison stack of n. Detuned voices add up to about sqrt(n) times one voice,
  // so 1/sqrt(n) would only match a single voice; this exponent leaves the stack about 4 to 5 dB louder.
@@ -62,7 +64,7 @@ private:
  void select(bool retrigger=false){int newest=-1;uint64 order=0;for(int i=0;i<2048;++i)if(keys[size_t(i)].order>order){order=keys[size_t(i)].order;newest=i;}
   if(newest==active&&!retrigger)return;
   if(newest<0){for(auto* v:voices)v->stopNote(0,true);active=-1;return;}
-  bool keep=active>=0&&value("legato")>.5f;int channel=newest/128+1,note=newest%128,n=mode==2?voices.size():1;float velocity=keys[size_t(newest)].velocity;
+  bool keep=active>=0&&value("legato")>.5f;int channel=newest/128+1,note=newest%128,n=mode==2?unisonCount():1;float velocity=keys[size_t(newest)].velocity;
   for(int i=0;i<n;++i){auto* v=static_cast<Voice*>(voices[i]);v->setUnison(n>1?(2.f*i/(n-1)-1)*value("unisonSpread"):0,unisonGain(n));
    if(keep&&v->isVoiceActive())v->retarget(note,velocity,lastPitchWheelValues[channel-1]);else startVoice(v,sounds[0],channel,note,velocity);
    v->controllerMoved(1,modWheel[size_t(channel-1)]);
