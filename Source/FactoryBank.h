@@ -2,7 +2,7 @@
 #include <juce_core/juce_core.h>
 #include <FactoryData.h>
 
-// VANTAGE factory bank: the 24 factory sounds (Presets/Sounds) embedded in the binary, played by BANK A/B/C and
+// VANTAGE factory bank: the 40 factory sounds (Presets/Sounds) embedded in the binary, played by BANK A to E and
 // PATCH 1-8 in the order below, so the program buttons give Vantage's own sounds even before the installer ran.
 class FactoryBank {
 public:
@@ -16,7 +16,11 @@ public:
    "KEYS - Bright Poly","KEYS - Band Clav","FX - Filter Wind",
    // C: basses, leads and sequences
    "BASS - Round Twelve","BASS - Unison Wall","BASS - Band Pulse","LEAD - Sync Horn","LEAD - Singing Band","LEAD - Unison Solo",
-   "SEQ - Chord Steps","SEQ - Notch Pulse"};
+   "SEQ - Chord Steps","SEQ - Notch Pulse",
+   // D: the modulation section
+   "BASS - Talking Mode","BASS - Mode Pluck","PAD - Mode Sweep","PAD - Tremolo Strings","PAD - Pressure Choir","KEYS - Shape Bells","KEYS - Metal Comb","LEAD - Vowel Lead",
+   // E: unison counts, S&H, ramps and movement
+   "LEAD - Three Voice Unison","BASS - Four Voice Unison","BRASS - Unison Section","FX - Random Band","FX - Ramp Rise","PAD - Spread Pitch","CHORD - Notch Organ","SEQ - Mode Steps"};
   return names;
  }
  static std::unique_ptr<juce::XmlElement> load(const juce::String& name) {

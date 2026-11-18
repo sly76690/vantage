@@ -97,12 +97,51 @@ SOUNDS = {
     "FX - Filter Wind": dict(BASE, oscLayer=1, vcoNoise=.9, vco1Wave=0, vco2Wave=0, cutoff=900, resonance=.85, env=.3, filterBP=1,
         attack=1.5, decay=3.0, sustain=.8, release=3.5, fattack=2.5, fdecay=3.0, fsustain=.4, frelease=3.0, rate=.08, lfoFilter=1.5, lfoShape=1,
         reverbType=2, reverbSize=.95, reverbMix=.35, gain=.6),
+    # ==== bank D: the modulation section (POLY-MOD to MODE / SHAPE 2 / BP, LFO to MODE and AMP, pressure to MODE)
+    "BASS - Talking Mode": dict(BASE, vco1Wave=.33, vco2Wave=.5, vcoSub=.5, cutoff=480, resonance=.55, env=.45, polyEnv=.9, polyMode=1, voiceMode=1, legato=1, portamento=.03,
+        attack=.002, decay=.45, sustain=.5, release=.12, fattack=.001, fdecay=.35, fsustain=.1, frelease=.12, voiceDrive=.75, fxDrive=.3, voiceWidth=.2, gain=1.0),
+    "BASS - Mode Pluck": dict(BASE, **SAW, vcoSub=.4, cutoff=700, resonance=.45, env=.5, polyEnv=-.8, polyMode=1, polyBP=1,
+        attack=.002, decay=.3, sustain=.15, release=.15, fattack=.001, fdecay=.22, fsustain=0, frelease=.12, voiceMode=1, voiceWidth=.2, voiceDrive=.6, fxDrive=.3, gain=1.0),
+    "PAD - Mode Sweep": dict(BASE, **SAW, detune=11, cutoff=1000, resonance=.5, env=.1, lfoMode=1, lfoShape=1, rate=.12,
+        attack=1.2, decay=2.0, sustain=.9, release=3.0, chorusMode=2, chorus=.35, reverbType=2, reverbSize=.85, reverbMix=.28, gain=.55),
+    "PAD - Tremolo Strings": dict(BASE, **SAW, detune=12, cutoff=2000, resonance=.1, env=.1, hpfFreq=.4, lfoAmp=.45, lfoShape=1, rate=5.2,
+        attack=.5, decay=1.5, sustain=.9, release=2.0, chorusMode=1, chorus=.3, reverbType=2, reverbMix=.24, gain=0.65),
+    "PAD - Pressure Choir": dict(BASE, vco1Wave=.4, vco2Wave=.66, detune=8, cutoff=900, resonance=.6, env=.15, atMode=1, atFilter=.3, vcoPwm=.3,
+        attack=.9, decay=2.0, sustain=.85, release=2.6, chorusMode=2, chorus=.4, reverbType=2, reverbSize=.8, reverbMix=.26, gain=.6),
+    "KEYS - Shape Bells": dict(BASE, oscLayer=.75, vco1Wave=0, vco2Wave=.33, osc2Octave=4, polyOsc=.55, polyShape=1, polyBP=1, cutoff=2400, resonance=.3, env=.3,
+        attack=.002, decay=1.8, sustain=0, release=1.8, fattack=.001, fdecay=1.2, fsustain=0, frelease=1.4, reverbType=2, reverbSize=.8, reverbMix=.28, delaySync=5, delayFeedback=.3, delayMix=.12, gain=0.8),
+    "KEYS - Metal Comb": dict(BASE, oscLayer=.8, vco1Wave=.33, vco2Wave=.6, osc2Octave=4, osc2Tune=5, polyOsc=.5, polyFreq=1, polyBP=1, cutoff=1600, resonance=.5, env=.35,
+        attack=.002, decay=.9, sustain=.1, release=.8, fattack=.001, fdecay=.6, fsustain=0, frelease=.6, phaserOn=1, phaserRate=.3, phaserMix=.3, reverbMix=.2, gain=.65),
+    "LEAD - Vowel Lead": dict(BASE, **SAW, detune=7, cutoff=1300, resonance=.7, env=.3, polyEnv=.7, polyMode=1, polyBP=1, voiceMode=1, legato=1, portamento=.06,
+        attack=.01, decay=.8, sustain=.8, release=.35, fattack=.01, fdecay=.9, fsustain=.3, frelease=.4, lfoShape=1, rate=5.6, lfoDelay=.45, lfoPitch=.25, atMode=.6,
+        delaySync=5, delayFeedback=.35, delayMix=.16, reverbMix=.18, voiceDrive=.7, fxDrive=.35, gain=0.65),
+    # ==== bank E: unison counts, S&H, ramps and movement
+    "LEAD - Three Voice Unison": dict(BASE, **SAW, voiceMode=2, unisonVoices=2, unisonSpread=14, cutoff=2000, resonance=.25, env=.3,
+        attack=.003, decay=.5, sustain=.9, release=.3, fattack=.001, fdecay=.45, fsustain=.6, frelease=.3, legato=1, portamento=.05,
+        lfoShape=1, rate=5.8, lfoDelay=.4, lfoPitch=.2, voiceDrive=.4, delaySync=6, delayFeedback=.3, delayMix=.14, reverbMix=.16, gain=0.75),
+    "BASS - Four Voice Unison": dict(BASE, **SAW, vcoSub=.4, voiceMode=2, unisonVoices=3, unisonSpread=10, cutoff=450, resonance=.3, env=.5,
+        attack=.002, decay=.5, sustain=.55, release=.15, fattack=.001, fdecay=.35, fsustain=.15, frelease=.15, legato=1, voiceDrive=.5, voiceWidth=.5, gain=.55),
+    "BRASS - Unison Section": dict(BASE, **SAW, voiceMode=2, unisonVoices=4, unisonSpread=12, cutoff=600, resonance=.2, env=.55,
+        attack=.03, decay=1.0, sustain=.8, release=.4, fattack=.07, fdecay=.8, fsustain=.45, frelease=.4, legato=1, portamento=.04, atFilter=.35, reverbType=1, reverbMix=.16, gain=.5),
+    "FX - Random Band": dict(BASE, vco1Wave=.4, vco2Wave=.66, detune=6, cutoff=1100, resonance=.8, env=0, filterBP=1, lfoShape=5, rate=6, lfoFilter=1.2, lfoMode=.6,
+        attack=.01, decay=1.0, sustain=1, release=1.2, delaySync=5, delayFeedback=.45, delayMix=.22, reverbType=2, reverbMix=.24, gain=0.52),
+    "FX - Ramp Rise": dict(BASE, **SAW, detune=10, cutoff=700, resonance=.65, env=0, lfoShape=4, rate=.5, lfoFilter=2.0, lfoMode=.5,
+        attack=.3, decay=1.0, sustain=1, release=1.5, phaserOn=1, phaserRate=.2, phaserMix=.3, reverbType=2, reverbSize=.8, reverbMix=.26, gain=0.7),
+    "PAD - Spread Pitch": dict(BASE, **SAW, detune=10, voiceSpread=1, voiceWidth=1, cutoff=1400, resonance=.2, env=.2, age=.7,
+        attack=.7, decay=2.0, sustain=.85, release=2.5, fattack=1.0, fdecay=2.0, fsustain=.6, frelease=2.2, chorusMode=1, chorus=.25, reverbType=2, reverbSize=.85, reverbMix=.26, gain=0.65),
+    "CHORD - Notch Organ": dict(BASE, vco1Wave=.66, vco2Wave=.66, detune=4, osc2Octave=4, cutoff=1200, resonance=.4, env=0, filterMode=.5, chordOn=1, chord="0,7,12,16",
+        attack=.01, decay=.5, sustain=1, release=.25, lfoAmp=.25, lfoShape=1, rate=6.5, chorusMode=3, chorus=.4, reverbMix=.2, gain=0.32),
+    "SEQ - Mode Steps": dict(BASE, **SAW, detune=6, cutoff=800, resonance=.55, env=.4, lfoShape=5, lfoMode=1, lfoSync=0, rate=8,
+        attack=.002, decay=.2, sustain=.1, release=.1, fattack=.001, fdecay=.15, fsustain=0, frelease=.1, voiceMode=1,
+        arpTempo=120, arpDivision=2, arpGate=.55, delaySync=5, delayFeedback=.4, delayMix=.18, voiceDrive=.6, fxDrive=.35, vcoSub=.4, gain=0.75,
+        sequence="40;40;52;40;47;40;50;52;40;40;52;40;45;47;50;52"),
 }
 
 folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Presets", "Sounds")
 os.makedirs(folder, exist_ok=True)
-for old in glob.glob(os.path.join(folder, "*.orbitpreset")):   # the bank is rewritten as a whole
-    os.remove(old)
+for old in glob.glob(os.path.join(folder, "*.orbitpreset")):   # sounds no longer in the list are removed; the others are rewritten
+    if os.path.basename(old)[:-len(".orbitpreset")] not in SOUNDS:
+        os.remove(old)
 for name, settings in SOUNDS.items():
     settings = dict(settings); sequence = settings.pop("sequence", None); chord = settings.pop("chord", None)
     extra = (' sequence=%s' % quoteattr(sequence) if sequence else '') + (' chord=%s' % quoteattr(chord) if chord else '')

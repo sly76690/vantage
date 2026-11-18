@@ -620,8 +620,8 @@ private:
    else if (id >= 1000) { const int index = id - 1000; if (isPositiveAndBelow(index, userNames.size())) showResult(orbit.loadUserPreset(userNames[index])); }
    else if (id > 0) orbit.setCurrentProgram(id - 1);
   };
-  for (int i = 0; i < 3; ++i) { auto* button = bankButtons.add(new TextButton()); addButton(*button, String::charToString(juce_wchar('A' + i)), {876 + i * 41, 39, 36, 45}, neutral, 1); button->onClick = [this, i] { shownBank = i; timerCallback(); }; }
-  for (int i = 0; i < 8; ++i) { auto* button = patchButtons.add(new TextButton()); addButton(*button, String(i + 1), {1024 + i * 39, 39, 34, 45}, i < 4 ? bright : neutral, 1); button->onClick = [this, i] { orbit.setCurrentProgram(shownBank * 8 + i); timerCallback(); }; }
+  for (int i = 0; i < 5; ++i) { auto* button = bankButtons.add(new TextButton()); addButton(*button, String::charToString(juce_wchar('A' + i)), {862 + i * 33, 39, 30, 45}, neutral, 1); button->onClick = [this, i] { shownBank = i; timerCallback(); }; }
+  for (int i = 0; i < 8; ++i) { auto* button = patchButtons.add(new TextButton()); addButton(*button, String(i + 1), {1030 + i * 39, 39, 34, 45}, i < 4 ? bright : neutral, 1); button->onClick = [this, i] { orbit.setCurrentProgram(shownBank * 8 + i); timerCallback(); }; }
   addButton(saveButton, "SAVE", {1416, 39, 70, 44}, amber, 1); saveButton.onClick = [this] { saveDialog(); };
   addButton(midiButton, "MIDI", {1344, 39, 60, 44}, neutral, 1); midiButton.onClick = [this] { midiMenu(); }; // MIDI learn
   addButton(loadButton, "LOAD", {1494, 39, 70, 44}, neutral, 1);
@@ -833,7 +833,7 @@ private:
   g.setColour(dim);g.setFont(face(12.f).withExtraKerningFactor(.10f));g.drawText("PROGRAMMABLE POLYPHONIC SYNTHESIZER",left+114,76,350,18,Justification::centredLeft);
   Rectangle<float> window(510,22,344,70);g.setColour(Colour(0xff020303));g.fillRoundedRectangle(window,3);g.setColour(Colour(0xff36382f));g.drawRoundedRectangle(window,3,1);
   g.setColour(led);g.setFont(mono(11.f));g.drawText(displayLine,522,29,320,20,Justification::centredLeft);
-  g.setColour(dim);g.setFont(face(12.f));g.drawText("BANK",876,19,118,14,Justification::centred);g.drawText("PATCH",1024,19,307,14,Justification::centred);
+  g.setColour(dim);g.setFont(face(12.f));g.drawText("BANK",862,19,162,14,Justification::centred);g.drawText("PATCH",1030,19,307,14,Justification::centred);
   for(const auto& [area,colour]:wells){g.setColour(colour);g.fillRoundedRectangle(area.toFloat(),4.f);} // groups inside a section (EFFECTS: chorus, phaser)
   for(const auto& section:sections){
    if(section.page>=0&&section.page!=page)continue;
